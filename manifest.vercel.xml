@@ -20,7 +20,7 @@
   </Hosts>
   <DefaultSettings>
     <!-- Reemplazar con la URL de Vercel tras el primer deploy (ej: https://axel-addin.vercel.app) -->
-    <SourceLocation DefaultValue="https://YOUR_VERCEL_URL.vercel.app" />
+    <SourceLocation DefaultValue="https://axel-black.vercel.app" />
   </DefaultSettings>
   <Permissions>ReadWriteDocument</Permissions>
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
@@ -68,8 +68,8 @@
       </bt:Images>
       <bt:Urls>
         <!-- Reemplazar YOUR_VERCEL_URL con la URL real del proyecto en Vercel -->
-        <bt:Url id="Axel.FunctionFile.Url" DefaultValue="https://YOUR_VERCEL_URL.vercel.app" />
-        <bt:Url id="Axel.Taskpane.Url" DefaultValue="https://YOUR_VERCEL_URL.vercel.app" />
+        <bt:Url id="Axel.FunctionFile.Url" DefaultValue="https://axel-black.vercel.app" />
+        <bt:Url id="Axel.Taskpane.Url" DefaultValue="https://axel-black.vercel.app" />
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Axel.GroupLabel" DefaultValue="Axel" />

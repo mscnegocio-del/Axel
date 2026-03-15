@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { UserButton } from "@clerk/react";
 import { useChat } from "ai/react";
 import type { Message } from "ai/react";
@@ -6,6 +7,7 @@ import {
   chatFetch,
   getChatApiUrl,
   prepareChatBody,
+  getToolCallsAndResultsFromMessage,
   type ExcelContext,
   type AttachmentPayload,
 } from "@/lib/assistant";
@@ -13,6 +15,7 @@ import { TokenUsageDisplay } from "@/components/billing/TokenUsageDisplay";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { AttachmentList } from "@/components/attachments/AttachmentList";
 import { useExcelContext } from "@/hooks/useExcelContext";
+import { useExcelWrite } from "@/hooks/useExcelWrite";
 import { useFileAttachment, type Tier } from "@/hooks/useFileAttachment";
 
 type ChatPageProps = {
@@ -45,9 +48,13 @@ export default function ChatPage({
 }: ChatPageProps) {
   const { excelContext } = useExcelContext();
   const attachmentState = useFileAttachment(tier);
+  const executeWrite = useExcelWrite();
+  const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
 
   const {
     messages,
+    setMessages,
+    reload,
     input,
     handleInputChange,
     handleSubmit,
@@ -61,16 +68,38 @@ export default function ChatPage({
       attachment: attachmentState.getAttachmentForRequest(),
     },
     experimental_prepareRequestBody: ({ messages: msgs, requestBody }) => {
-      const last = msgs[msgs.length - 1];
-      const message = last ? getMessageContent(last) : "";
       const extra = (requestBody ?? {}) as {
         excelContext?: ExcelContext;
         attachment?: AttachmentPayload | null;
       };
+      const last = msgs[msgs.length - 1];
+      const hasAssistantToolResults =
+        last?.role === "assistant" &&
+        Array.isArray((last as Message).toolInvocations) &&
+        (last as Message).toolInvocations?.some(
+          (inv: { state?: string }) => inv.state === "result"
+        );
+
+      let message: string;
+      let toolCalls: { id: string; name: string; arguments: unknown }[] | undefined;
+      let toolResults: { toolCallId: string; toolName: string; result: unknown }[] | undefined;
+
+      if (hasAssistantToolResults && msgs.length >= 2) {
+        const userMsg = msgs[msgs.length - 2];
+        message = getMessageContent(userMsg);
+        const { toolCalls: tc, toolResults: tr } = getToolCallsAndResultsFromMessage(last as Message);
+        if (tc.length) toolCalls = tc;
+        if (tr.length) toolResults = tr;
+      } else {
+        message = last ? getMessageContent(last) : "";
+      }
+
       return prepareChatBody({
         message,
         excelContext: extra.excelContext ?? {},
         attachment: extra.attachment ?? undefined,
+        toolCalls,
+        toolResults,
       }) as JSONValue;
     },
     onResponse: (res) => {
@@ -89,6 +118,26 @@ export default function ChatPage({
       }
     },
   });
+
+  const onToolResult = useCallback(
+    (messageId: string, toolCallId: string, result: unknown) => {
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id !== messageId || !msg.toolInvocations) return msg;
+          return {
+            ...msg,
+            toolInvocations: msg.toolInvocations.map((inv) => {
+              const ti = inv as { toolCallId?: string; state?: string };
+              if (ti.toolCallId !== toolCallId) return inv;
+              return { ...inv, state: "result" as const, result };
+            }),
+          };
+        })
+      );
+      void reload();
+    },
+    [setMessages, reload]
+  );
 
   return (
     <div className="flex min-h-screen flex-col p-4">
@@ -114,6 +163,10 @@ export default function ChatPage({
           messages={messages}
           isLoading={isLoading}
           emptyMessage="Escribe un mensaje. Se enviará el rango seleccionado en Excel como contexto."
+          executeWrite={executeWrite}
+          onToolResult={onToolResult}
+          executingToolCallId={executingToolCallId}
+          setExecutingToolCallId={setExecutingToolCallId}
         />
         <AttachmentList
           files={attachmentState.files.map((f) => ({ id: f.id, filename: f.filename }))}

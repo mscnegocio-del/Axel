@@ -8,7 +8,7 @@
 
 | Repo | Visibilidad | Estado | URL |
 |---|---|---|---|
-| `github.com/sistsalcedo/Axel` | Público | En construcción | Vercel (pendiente) |
+| `github.com/mscnegocio-del/Axel` | Público | ✅ En producción | `https://axel-black.vercel.app` |
 | `github.com/mscnegocio-del/Axel-addin-backend` | Privado | ✅ En producción | `https://axel-addin-backend.vercel.app/api` |
 
 El add-in nunca llama directamente a GROQ ni Cloudflare — siempre pasa por el backend privado.
@@ -290,18 +290,16 @@ token_usage (
 ## Despliegue — estado actual y próximos pasos
 
 ```
-✅ Backend desplegado → https://axel-addin-backend.vercel.app/api
-⬜ Frontend (add-in) → pendiente
+✅ Backend desplegado   → https://axel-addin-backend.vercel.app/api
+✅ Frontend desplegado  → https://axel-black.vercel.app
+✅ Repo público         → https://github.com/mscnegocio-del/Axel
 
-Pasos para el frontend:
-1. Conectar repo Axel en Vercel
-2. Framework: Vite
-3. Variables de entorno:
-   - VITE_CLERK_PUBLISHABLE_KEY=pk_...
-   - VITE_BACKEND_URL=https://axel-addin-backend.vercel.app/api
-4. Desplegar → obtener URL del add-in
-5. Actualizar manifest.vercel.xml con esa URL
-6. Cargar manifest en Excel para pruebas
+- **manifest.vercel.xml** actualizado con `https://axel-black.vercel.app`
+- **Tool calls en el chat:** tarjetas "Leyendo rango…" y "Escribir datos" (preview + Aprobar/Cancelar) cuando el backend envía tool calls. Coordinación backend: [docs/BACKEND_TOOL_CALLS.md](docs/BACKEND_TOOL_CALLS.md)
+- Configurar Lemon Squeezy producto Pro ($9/mes)
+- Agregar VITE_UPGRADE_URL en Vercel Dashboard
+- Activar Google OAuth en Clerk con dominio axel-black.vercel.app
+- Probar manifest en Excel Online
 ```
 
 ---

@@ -4,6 +4,8 @@ Este es el repo **público**. Contiene el add-in de Excel — lo que el usuario 
 Toda la lógica de auth, billing, modelos de IA y rate limiting vive en el **backend privado ya desplegado**.
 
 **Backend en producción:** `https://axel-addin-backend.vercel.app/api`
+**Frontend en producción:** `https://axel-black.vercel.app`
+**Repo público:** `https://github.com/mscnegocio-del/Axel`
 
 Lee `ARCHITECTURE.md` para entender el sistema completo antes de tocar código.
 
@@ -26,7 +28,7 @@ Lee `ARCHITECTURE.md` para entender el sistema completo antes de tocar código.
 
 | Este repo (add-in) | Backend privado |
 |---|---|
-| `github.com/sistsalcedo/Axel` | `github.com/mscnegocio-del/Axel-addin-backend` (privado) |
+| `github.com/mscnegocio-del/Axel` | `github.com/mscnegocio-del/Axel-addin-backend` (privado) |
 | Corre dentro de Excel (task pane) | Corre en Vercel Node.js Functions |
 | Solo UI + Office.js | Auth, billing, IA, rate limiting |
 
@@ -192,6 +194,7 @@ npm run lint
 6. Cargar el manifest en Excel
 
 > El backend ya está desplegado y funcionando. No necesitas configurarlo.
+> El frontend también está desplegado en https://axel-black.vercel.app
 
 ---
 
