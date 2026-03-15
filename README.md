@@ -1,53 +1,125 @@
-# Axel — Add-in de Excel con IA
+# Axel
 
-Add-in de Excel (task pane) que consume el backend en producción. Ver [ARCHITECTURE.md](ARCHITECTURE.md) y [CLAUDE-publico.md](CLAUDE-publico.md) para contexto completo.
+**Add-in de Excel con IA** — panel de tareas que conecta con un backend en producción para chat con contexto de hoja, adjuntos y control de uso por plan.
+
+[![Node.js](https://img.shields.io/badge/Node.js-18+-3c873a?style=flat-square)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Vite](https://img.shields.io/badge/Vite-6-646cff?style=flat-square&logo=vite)](https://vitejs.dev)
+[![React](https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react)](https://react.dev)
+
+[Resumen](#resumen) • [Requisitos](#requisitos) • [Configuración](#configuración) • [Desarrollo](#desarrollo) • [Despliegue](#despliegue) • [Estructura](#estructura)
+
+---
+
+## Resumen
+
+Axel es el **frontend del add-in de Excel**: una aplicación React (Vite + TypeScript) que se ejecuta dentro del task pane de Excel. La autenticación la gestiona **Clerk**; el chat, el uso de tokens y la lógica de negocio están en un **backend desplegado** (`https://axel-addin-backend.vercel.app/api`). Este repositorio solo contiene el add-in; no incluye el backend.
+
+- **Chat con IA** usando el contexto de la hoja activa y rango seleccionado (Office.js).
+- **Adjuntos** (PDF) con límites por plan (Free: 1 archivo ≤5MB; Pro: hasta 5 archivos ≤20MB).
+- **Uso de tokens** mostrado en la UI; redirección a upgrade cuando se supera el límite del plan.
+- **Planes Free/Pro** con redirección a Lemon Squeezy para checkout.
+
+Para decisiones de diseño y arquitectura del sistema completo, ver [ARCHITECTURE.md](ARCHITECTURE.md) y [CLAUDE-publico.md](CLAUDE-publico.md).
 
 ## Requisitos
 
-- Node.js 18+
-- Cuenta Clerk y backend desplegado
+- **Node.js** 18 o superior
+- **Cuenta Clerk** y aplicación creada en [Clerk Dashboard](https://dashboard.clerk.com)
+- El backend ya está en producción; no es necesario clonar ni desplegar el repo del backend
 
-## Variables de entorno
+## Configuración
 
-Copia `.env.example` a `.env` y rellena:
+1. Clona el repositorio y entra en la carpeta del proyecto.
 
-- `VITE_CLERK_PUBLISHABLE_KEY` — desde [Clerk Dashboard](https://dashboard.clerk.com)
-- `VITE_BACKEND_URL` — en producción: `https://axel-addin-backend.vercel.app/api`
+2. Instala dependencias:
 
-## Comandos
+   ```bash
+   npm install
+   ```
+
+3. Copia el ejemplo de variables de entorno y rellena los valores:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Variables necesarias:
+
+   | Variable | Descripción |
+   |----------|-------------|
+   | `VITE_CLERK_PUBLISHABLE_KEY` | Clave pública de tu aplicación Clerk |
+   | `VITE_BACKEND_URL` | URL del API del backend. En producción: `https://axel-addin-backend.vercel.app/api` |
+   | `VITE_UPGRADE_URL` | _(Opcional)_ URL de checkout (Lemon Squeezy) para el plan Pro |
+
+> [!NOTE]
+> Para desarrollo local contra un backend en otra máquina, usa por ejemplo `VITE_BACKEND_URL=http://localhost:4000/api` en tu `.env`.
+
+## Desarrollo
+
+Inicia el servidor de desarrollo:
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173
-npm run build
-npm run typecheck
-npm run lint
+npm run dev
 ```
 
-## Cargar el add-in en Excel
+La app estará en `http://localhost:5173`.
 
-- **Desarrollo:** `npm run dev` → en Excel: Inicio → Complementos → Administrar mis complementos → Cargar → seleccionar `manifest.xml`.
-- **Producción:** Tras desplegar en Vercel (ver abajo), actualizar `manifest.vercel.xml` con la URL real del proyecto y cargar ese manifest en Excel.
+### Cargar el add-in en Excel
 
-La app espera a `Office.onReady()` antes de montar React; no uses `Office.context` antes de que el add-in esté listo.
+- **Desarrollo:** En Excel: **Inicio** → **Complementos** → **Administrar mis complementos** → **Cargar** → selecciona el archivo `manifest.xml` del proyecto (apunta a `http://localhost:5173`).
+- La app espera a `Office.onReady()` antes de montar React; no uses `Office.context` antes de que el add-in esté listo.
 
-## Despliegue en Vercel (Fase 8)
+Comandos útiles:
 
-1. **Conectar el repo** en [Vercel](https://vercel.com) (repo público).
-2. **Framework preset:** Vite.
+| Comando | Descripción |
+|---------|-------------|
+| `npm run dev` | Servidor de desarrollo (Vite) |
+| `npm run build` | Compilación para producción |
+| `npm run typecheck` | Comprobación de tipos (TypeScript) |
+| `npm run lint` | ESLint |
+| `npm run preview` | Vista previa del build |
+
+## Despliegue
+
+El add-in se despliega como sitio estático en **Vercel**. El backend ya está desplegado por separado.
+
+1. **Conectar el repositorio** en [Vercel](https://vercel.com) (importar el repo de GitHub).
+
+2. **Framework preset:** Vite. Vercel lo detecta automáticamente.
+
 3. **Variables de entorno** en el proyecto de Vercel:
-   - `VITE_CLERK_PUBLISHABLE_KEY` — tu clave de Clerk.
+   - `VITE_CLERK_PUBLISHABLE_KEY` — clave pública de Clerk.
    - `VITE_BACKEND_URL` — `https://axel-addin-backend.vercel.app/api`
-   - Opcional: `VITE_UPGRADE_URL` — URL de checkout (Lemon Squeezy).
-4. **Desplegar** y anotar la URL del add-in (ej: `https://axel-addin-xxx.vercel.app`).
-5. **Actualizar `manifest.vercel.xml`:** reemplazar `YOUR_VERCEL_URL` por el subdominio de tu proyecto en Vercel (ej. `axel-addin` o `axel-addin-xxx`), de modo que las URLs queden como `https://axel-addin.vercel.app`. Sustituir en `<SourceLocation DefaultValue="...">` y en los dos `<bt:Url ... DefaultValue="...">` de Resources.
-6. **Cargar el manifest en Excel:** Administrar mis complementos → Cargar → seleccionar `manifest.vercel.xml`.
+   - `VITE_UPGRADE_URL` — _(opcional)_ URL de checkout para upgrade.
 
-El backend ya está en producción; no hace falta configurarlo.
+4. **Desplegar** y anotar la URL del proyecto (ej: `https://axel-addin-xxx.vercel.app`).
 
-## Estructura
+5. **Actualizar el manifest de producción:** en `manifest.vercel.xml` sustituye `YOUR_VERCEL_URL` por el subdominio real de tu proyecto en Vercel en:
+   - `<SourceLocation DefaultValue="...">`
+   - Los dos `<bt:Url ... DefaultValue="...">` dentro de Resources.
 
-- `src/components/` — chat, auth, billing, excel, attachments, ui (shadcn)
-- `src/hooks/` — useExcelContext, useTokenUsage, useFileAttachment, useModelSelector
-- `src/lib/` — assistant, clerk, utils
-- `src/pages/` — ChatPage, LoginPage, UpgradePage
+6. **Cargar el add-in en Excel (producción):** **Administrar mis complementos** → **Cargar** → selecciona `manifest.vercel.xml`.
+
+> [!IMPORTANT]
+> Sin actualizar `manifest.vercel.xml` con la URL real, Excel no podrá cargar el add-in en producción.
+
+## Estructura del proyecto
+
+```
+src/
+├── components/     # Chat, auth, billing, excel, attachments, ui (shadcn)
+├── hooks/          # useExcelContext, useTokenUsage, useFileAttachment, useModelSelector
+├── lib/            # assistant, api, clerk, utils
+├── pages/          # ChatPage, LoginPage, UpgradePage
+├── App.tsx
+├── main.tsx        # Montaje tras Office.onReady()
+└── index.css       # Estilos globales y Tailwind
+```
+
+- **Manifests:** `manifest.xml` (desarrollo, localhost) y `manifest.vercel.xml` (producción).
+
+## Documentación adicional
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — Arquitectura del sistema, backend vs add-in, flujos.
+- [CLAUDE-publico.md](CLAUDE-publico.md) — Contexto técnico y convenciones del proyecto.
