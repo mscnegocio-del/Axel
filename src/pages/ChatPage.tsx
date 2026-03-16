@@ -202,10 +202,10 @@ export default function ChatPage({
           onRemove={attachmentState.removeFile}
           error={attachmentState.error}
         />
-        {error && (
+        {error && !rateLimitMessage && (
           <p className="text-destructive text-sm">{error.message}</p>
         )}
-        {rateLimitMessage && !error && (
+        {rateLimitMessage && (
           <p className="text-muted-foreground text-sm">{rateLimitMessage}</p>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">

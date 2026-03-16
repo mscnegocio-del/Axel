@@ -22,8 +22,30 @@ export function useExcelWrite(): (
         if (sheet.isNullObject) {
           sheet = context.workbook.worksheets.add(sheetName);
         }
-        const range = sheet.getRange(rangeAddress);
-        range.values = values as string[][];
+        // Obtener rango base y sus dimensiones actuales
+        let range = sheet.getRange(rangeAddress);
+        range.load(["rowCount", "columnCount"]);
+        await context.sync();
+
+        const valueRows = Array.isArray(values) ? values.length : 0;
+        const valueCols =
+          valueRows > 0 && Array.isArray(values[0]) ? (values[0] as unknown[]).length : 0;
+
+        if (
+          valueRows > 0 &&
+          valueCols > 0 &&
+          (valueRows !== range.rowCount || valueCols !== range.columnCount)
+        ) {
+          // Si las dimensiones no coinciden, usar solo la celda inicial
+          // y dejar que Excel calcule el tamaño con getResizedRange.
+          const startCell = rangeAddress.split(":")[0];
+          const startRange = sheet.getRange(startCell);
+          const dataRange = startRange.getResizedRange(valueRows - 1, valueCols - 1);
+          dataRange.values = values as string[][];
+        } else {
+          // Coinciden, podemos escribir directamente en el rango original.
+          range.values = values as string[][];
+        }
         await context.sync();
       });
       return { success: true };
