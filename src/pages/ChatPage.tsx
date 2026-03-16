@@ -52,16 +52,16 @@ export default function ChatPage({
 
   const {
     messages,
-    setMessages,
-    reload,
     input,
     handleInputChange,
     handleSubmit,
     isLoading,
     error,
+    addToolResult,
   } = useChat({
     api: getChatApiUrl(),
     fetch: chatFetch,
+    maxSteps: 5,
     body: {
       excelContext,
       attachment: attachmentState.getAttachmentForRequest(),
@@ -119,23 +119,10 @@ export default function ChatPage({
   });
 
   const onToolResult = useCallback(
-    (messageId: string, toolCallId: string, result: unknown) => {
-      setMessages((prev) =>
-        prev.map((msg) => {
-          if (msg.id !== messageId || !msg.toolInvocations) return msg;
-          return {
-            ...msg,
-            toolInvocations: msg.toolInvocations.map((inv) => {
-              const ti = inv as { toolCallId?: string; state?: string };
-              if (ti.toolCallId !== toolCallId) return inv;
-              return { ...inv, state: "result" as const, result };
-            }),
-          };
-        })
-      );
-      void reload();
+    (_messageId: string, toolCallId: string, result: unknown) => {
+      addToolResult({ toolCallId, result });
     },
-    [setMessages, reload]
+    [addToolResult]
   );
 
   return (
