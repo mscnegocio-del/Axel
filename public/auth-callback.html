@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Autenticando…</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 16px;
+        background-color: #f9fafb;
+      }
+      .card {
+        max-width: 360px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 15px rgba(15, 23, 42, 0.1);
+        padding: 20px;
+        text-align: center;
+      }
+      .title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      .subtitle {
+        font-size: 0.875rem;
+        color: #6b7280;
+      }
+      .error {
+        font-size: 0.75rem;
+        color: #dc2626;
+        margin-top: 0.75rem;
+      }
+    </style>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  </head>
+  <body>
+    <div class="card">
+      <div class="title">Autenticando…</div>
+      <div class="subtitle">
+        Espera un momento mientras confirmamos tu inicio de sesión.
+      </div>
+      <div id="error" class="error" style="display: none"></div>
+    </div>
+
+    <script>
+      (function () {
+        var supabaseUrl = "https://ughmkhjyzfdycuzrqzzb.supabase.co";
+        var supabaseAnonKey =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaG1raGp5emZkeWN1enJxenpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NDA0MzQsImV4cCI6MjA4ODQxNjQzNH0.Aunw2PVwVsoSc8gCBgexP9o3KmaH9Wbg9dNK24bCXAY";
+
+        var supabaseClient = window.supabase.createClient(
+          supabaseUrl,
+          supabaseAnonKey
+        );
+
+        var errorEl = document.getElementById("error");
+
+        function setError(message) {
+          errorEl.textContent = message;
+          errorEl.style.display = message ? "block" : "none";
+        }
+
+        function sendSessionToParent(session) {
+          Office.onReady(function () {
+            Office.context.ui.messageParent(
+              JSON.stringify({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token,
+              })
+            );
+          });
+        }
+
+        supabaseClient.auth
+          .getSession()
+          .then(function (result) {
+            if (result.error) {
+              throw result.error;
+            }
+            var session = result.data.session;
+            if (!session) {
+              throw new Error("No se encontró ninguna sesión activa.");
+            }
+            sendSessionToParent(session);
+          })
+          .catch(function (err) {
+            setError(
+              "No se pudo completar la autenticación: " +
+                (err.message || String(err))
+            );
+          });
+      })();
+    </script>
+  </body>
+  </html>
+

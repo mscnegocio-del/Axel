@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Iniciar sesión en Axel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 16px;
+        background-color: #f9fafb;
+      }
+      .card {
+        max-width: 400px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 15px rgba(15, 23, 42, 0.1);
+        padding: 20px;
+      }
+      .title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      .subtitle {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-bottom: 1rem;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        border: none;
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      .btn-google {
+        background-color: #2563eb;
+        color: #ffffff;
+        margin-bottom: 0.75rem;
+      }
+      .divider {
+        height: 1px;
+        width: 100%;
+        background-color: #e5e7eb;
+        margin: 0.75rem 0;
+      }
+      .label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-bottom: 0.25rem;
+      }
+      .input {
+        width: 100%;
+        padding: 0.4rem 0.5rem;
+        border-radius: 0.375rem;
+        border: 1px solid #d1d5db;
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+        box-sizing: border-box;
+      }
+      .btn-email {
+        background-color: #111827;
+        color: #ffffff;
+      }
+      .error {
+        font-size: 0.75rem;
+        color: #dc2626;
+        margin-top: 0.5rem;
+      }
+      .info {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+      }
+    </style>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  </head>
+  <body>
+    <div class="card">
+      <div class="title">Inicia sesión en Axel</div>
+      <div class="subtitle">
+        Usa tu cuenta de Google o correo y contraseña para autenticarte.
+      </div>
+      <button id="google-btn" class="btn btn-google">Continuar con Google</button>
+      <div class="divider"></div>
+      <form id="email-form">
+        <div class="label">Correo electrónico</div>
+        <input id="email-input" class="input" type="email" required />
+        <div class="label">Contraseña</div>
+        <input id="password-input" class="input" type="password" required />
+        <button type="submit" class="btn btn-email">Entrar con email</button>
+      </form>
+      <div id="error" class="error" style="display: none"></div>
+      <div class="info">
+        Esta ventana se abrirá fuera de Excel para completar el proceso de inicio
+        de sesión.
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var supabaseUrl = "https://ughmkhjyzfdycuzrqzzb.supabase.co";
+        var supabaseAnonKey =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnaG1raGp5emZkeWN1enJxenpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4NDA0MzQsImV4cCI6MjA4ODQxNjQzNH0.Aunw2PVwVsoSc8gCBgexP9o3KmaH9Wbg9dNK24bCXAY";
+
+        var supabaseClient = window.supabase.createClient(
+          supabaseUrl,
+          supabaseAnonKey
+        );
+
+        var errorEl = document.getElementById("error");
+
+        function setError(message) {
+          errorEl.textContent = message;
+          errorEl.style.display = message ? "block" : "none";
+        }
+
+        document
+          .getElementById("google-btn")
+          .addEventListener("click", function () {
+            setError("");
+            supabaseClient.auth
+              .signInWithOAuth({
+                provider: "google",
+                options: {
+                  redirectTo: "https://axel.habla.cloud/auth-callback.html",
+                },
+              })
+              .catch(function (err) {
+                setError(
+                  "No se pudo iniciar sesión con Google: " + (err.message || err)
+                );
+              });
+          });
+
+        document
+          .getElementById("email-form")
+          .addEventListener("submit", function (e) {
+            e.preventDefault();
+            setError("");
+
+            var email = document.getElementById("email-input").value;
+            var password = document.getElementById("password-input").value;
+
+            supabaseClient.auth
+              .signInWithPassword({ email: email, password: password })
+              .then(function (result) {
+                if (result.error) {
+                  throw result.error;
+                }
+                var session = result.data.session;
+                if (!session) {
+                  throw new Error("No se recibió sesión de Supabase.");
+                }
+
+                Office.onReady(function () {
+                  Office.context.ui.messageParent(
+                    JSON.stringify({
+                      access_token: session.access_token,
+                      refresh_token: session.refresh_token,
+                    })
+                  );
+                });
+              })
+              .catch(function (err) {
+                setError(
+                  "Error al iniciar sesión con email: " + (err.message || err)
+                );
+              });
+          });
+      })();
+    </script>
+  </body>
+  </html>
+
