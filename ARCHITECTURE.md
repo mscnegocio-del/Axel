@@ -25,10 +25,10 @@ El add-in nunca llama directamente a GROQ ni Cloudflare — siempre pasa por el 
 │   │           Task Pane (Office Add-in)          │   │
 │   │         REPO PÚBLICO: Axel                   │   │
 │   │                                              │   │
-│   │   React + assistant-ui + Clerk + Tailwind    │   │
+│   │   React + Vite + Tailwind                    │   │
 │   │                                              │   │
-│   │  Chat UI ←── streaming ─────────────────────│───│──→ axel-addin-backend.vercel.app
-│   │  Auth UI ←── Clerk JWT ─────────────────────│───│──→ Clerk
+│   │  Chat UI ←── streaming (Vercel AI SDK) ────│───│──→ axel-addin-backend.vercel.app
+│   │  Auth UI ←── Supabase session ─────────────│───│──→ Supabase Auth
 │   │  Excel Context (Office.js) ─────────────────│   │
 │   │  PDF adjunto (base64) ──────────────────────│   │
 │   └─────────────────────────────────────────────┘   │
@@ -57,13 +57,13 @@ El add-in nunca llama directamente a GROQ ni Cloudflare — siempre pasa por el 
    (primera capa,   (segunda capa   del usuario
     free tier)       + Pro tier)
 
-┌──────────────┐  ┌──────────────┐  ┌──────────────┐
-│ Upstash Redis│  │   Supabase   │  │    Clerk     │
-│              │  │              │  │              │
-│ Rate limiting│  │ users +      │  │ Auth + JWT   │
-│ Token counts │  │ token_usage  │  │ User roles   │
-│ Cooldowns    │  │ (sin historial│  │ Webhooks     │
-└──────────────┘  │ de chat)     │  └──────────────┘
+┌──────────────┐  ┌──────────────┐
+│ Upstash Redis│  │   Supabase   │
+│              │  │              │
+│ Rate limiting│  │ users +      │
+│ Token counts │  │ token_usage  │
+│ Cooldowns    │  │ (sin historial│
+└──────────────┘  │ de chat)     │
                   └──────────────┘
 
 ┌──────────────┐
@@ -83,8 +83,8 @@ El add-in nunca llama directamente a GROQ ni Cloudflare — siempre pasa por el 
 Axel/
 ├── src/
 │   ├── components/
-│   │   ├── chat/               # assistant-ui customizado
-│   │   ├── auth/               # Clerk login/registro
+│   │   ├── chat/               # UI de chat + tool call cards
+│   │   ├── auth/               # Pantalla de login (Office Dialog + Supabase)
 │   │   ├── billing/            # Contador tokens, pantalla upgrade
 │   │   ├── excel/              # Botones de acción sobre el libro
 │   │   └── attachments/        # Upload PDFs e imágenes, preview
@@ -94,8 +94,8 @@ Axel/
 │   │   ├── useModelSelector.ts  # Estado del modelo seleccionado
 │   │   └── useFileAttachment.ts # Manejo de PDFs e imágenes adjuntas
 │   ├── lib/
-│   │   ├── assistant.ts         # Runtime de assistant-ui
-│   │   └── clerk.ts             # Configuración de Clerk
+│   │   ├── assistant.ts         # Helpers para cuerpo de /chat y tool calls
+│   │   └── supabase.ts          # Cliente de Supabase
 │   ├── pages/
 │   │   ├── ChatPage.tsx         # Página principal del task pane
 │   │   ├── LoginPage.tsx        # Primera pantalla si no autenticado
@@ -124,7 +124,7 @@ Axel-addin-backend/
 │   │       ├── clerk.ts
 │   │       └── lemon.ts
 │   ├── middleware/
-│   │   ├── auth.ts              # JWT Clerk
+│   │   ├── auth.ts              # Verificación de JWT (Supabase / backend propio)
 │   │   └── rateLimit.ts         # Upstash
 │   ├── providers/
 │   │   ├── index.ts             # Selección en capas
@@ -143,7 +143,7 @@ Axel-addin-backend/
 
 ---
 
-## Flujo de autenticación
+## Flujo de autenticación (Supabase + Office Dialog)
 
 ```
 Primera vez que el usuario abre el add-in:
@@ -151,13 +151,17 @@ Primera vez que el usuario abre el add-in:
 Task Pane carga
     │
     ▼
-Clerk detecta: ¿hay sesión activa?
+Supabase detecta: ¿hay sesión activa?
     │
     ├── NO → LoginPage
-    │         └── "Continuar con Google"
-    │               └── OAuth Gmail → Clerk crea usuario
-    │                     └── Webhook → backend crea user en Supabase
-    │                           └── Inicializa contador Redis
+    │         └── Botón "Log in" abre Office Dialog
+    │               └── `auth-dialog.html` (dominio público) maneja:
+    │                     - Login con Google (Supabase OAuth)
+    │                     - Login / registro con email + password
+    │               └── `auth-callback.html` obtiene la sesión y llama
+    │                     `Office.context.ui.messageParent({ access_token, refresh_token })`
+    │               └── LoginPage recibe el mensaje y llama
+    │                     `supabase.auth.setSession(...)`
     │
     └── SÍ → ChatPage directamente
 ```
@@ -208,7 +212,7 @@ Backend: JWT → rate limit → tokens → truncar contexto por tier
         ↓
 Cloudflare AI (primera capa) → si falla → GROQ (segunda capa)
         ↓
-Stream → frontend → assistant-ui renderiza token a token
+Stream → frontend → `useChat` (Vercel AI SDK) renderiza token a token
         ↓
 Historial guardado SOLO en estado de React del cliente
 Al cerrar Excel → historial desaparece (por diseño, privacidad)
@@ -262,7 +266,7 @@ Solo tier Free:
 
 ```sql
 users (
-  id    TEXT PRIMARY KEY,   -- Clerk user ID
+  id    TEXT PRIMARY KEY,   -- User ID (Supabase / backend)
   email TEXT NOT NULL,
   tier  TEXT DEFAULT 'free' -- 'free' | 'pro'
 )
@@ -295,10 +299,9 @@ token_usage (
 ✅ Repo público         → https://github.com/mscnegocio-del/Axel
 
 - **manifest.vercel.xml** actualizado con `https://axel-black.vercel.app`
-- **Tool calls en el chat:** tarjetas "Leyendo rango…" y "Escribir datos" (preview + Aprobar/Cancelar) cuando el backend envía tool calls. Coordinación backend: [docs/BACKEND_TOOL_CALLS.md](docs/BACKEND_TOOL_CALLS.md)
-- Configurar Lemon Squeezy producto Pro ($9/mes)
-- Agregar VITE_UPGRADE_URL en Vercel Dashboard
-- Activar Google OAuth en Clerk con dominio axel-black.vercel.app
+- **Tool calls en el chat:** tarjetas "Leyendo rango…" y "Escribir datos" (preview + Aprobar/Cancelar) cuando el backend envía tool calls compatibles con AI SDK v4. El frontend usa `useChat` (`ai/react`) con `maxSteps` y `addToolResult` para cerrar el ciclo de tools. Coordinación backend: [docs/BACKEND_TOOL_CALLS.md](docs/BACKEND_TOOL_CALLS.md)
+- Configurar Lemon Squeezy producto Pro ($9/mes) y `VITE_UPGRADE_URL`
+- Configurar Supabase Auth (Google + email/password) para el dominio del add-in (`https://axel-black.vercel.app`)
 - Probar manifest en Excel Online
 ```
 

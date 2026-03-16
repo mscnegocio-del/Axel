@@ -13,7 +13,7 @@
 
 ## Resumen
 
-Axel es el **frontend del add-in de Excel**: una aplicación React (Vite + TypeScript) que se ejecuta dentro del task pane de Excel. La autenticación la gestiona **Clerk**; el chat, el uso de tokens y la lógica de negocio están en un **backend desplegado** (`https://axel-addin-backend.vercel.app/api`). Este repositorio solo contiene el add-in; no incluye el backend.
+Axel es el **frontend del add-in de Excel**: una aplicación React (Vite + TypeScript) que se ejecuta dentro del task pane de Excel. La autenticación la gestiona **Supabase Auth** (via Office Dialog); el chat, el uso de tokens y la lógica de negocio están en un **backend desplegado** (`https://axel-addin-backend.vercel.app/api`). Este repositorio solo contiene el add-in; no incluye el backend.
 
 - **Chat con IA** usando el contexto de la hoja activa y rango seleccionado (Office.js).
 - **Adjuntos** (PDF) con límites por plan (Free: 1 archivo ≤5MB; Pro: hasta 5 archivos ≤20MB).
@@ -25,7 +25,7 @@ Para decisiones de diseño y arquitectura del sistema completo, ver [ARCHITECTUR
 ## Requisitos
 
 - **Node.js** 18 o superior
-- **Cuenta Clerk** y aplicación creada en [Clerk Dashboard](https://dashboard.clerk.com)
+- **Proyecto Supabase** (para Auth) configurado con Google y email/password
 - El backend ya está en producción; no es necesario clonar ni desplegar el repo del backend
 
 ## Configuración
@@ -48,7 +48,8 @@ Para decisiones de diseño y arquitectura del sistema completo, ver [ARCHITECTUR
 
    | Variable | Descripción |
    |----------|-------------|
-   | `VITE_CLERK_PUBLISHABLE_KEY` | Clave pública de tu aplicación Clerk |
+   | `VITE_SUPABASE_URL` | URL del proyecto Supabase |
+   | `VITE_SUPABASE_ANON_KEY` | Anon key pública de Supabase |
    | `VITE_BACKEND_URL` | URL del API del backend. En producción: `https://axel-addin-backend.vercel.app/api` |
    | `VITE_UPGRADE_URL` | _(Opcional)_ URL de checkout (Lemon Squeezy) para el plan Pro |
 
@@ -89,7 +90,8 @@ El add-in se despliega como sitio estático en **Vercel**. El backend ya está d
 2. **Framework preset:** Vite. Vercel lo detecta automáticamente.
 
 3. **Variables de entorno** en el proyecto de Vercel:
-   - `VITE_CLERK_PUBLISHABLE_KEY` — clave pública de Clerk.
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
    - `VITE_BACKEND_URL` — `https://axel-addin-backend.vercel.app/api`
    - `VITE_UPGRADE_URL` — _(opcional)_ URL de checkout para upgrade.
 
@@ -110,7 +112,7 @@ El add-in se despliega como sitio estático en **Vercel**. El backend ya está d
 src/
 ├── components/     # Chat, auth, billing, excel, attachments, ui (shadcn)
 ├── hooks/          # useExcelContext, useTokenUsage, useFileAttachment, useModelSelector
-├── lib/            # assistant, api, clerk, utils
+├── lib/            # assistant, api, supabase, utils
 ├── pages/          # ChatPage, LoginPage, UpgradePage
 ├── App.tsx
 ├── main.tsx        # Montaje tras Office.onReady()

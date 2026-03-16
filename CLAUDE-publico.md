@@ -14,8 +14,8 @@ Lee `ARCHITECTURE.md` para entender el sistema completo antes de tocar código.
 ## Qué hace este repo
 
 - Renderiza el task pane dentro de Microsoft Excel (Office Add-in)
-- Muestra la UI de chat con streaming usando assistant-ui
-- Autentica al usuario con Clerk (Google / email)
+- Muestra la UI de chat con streaming usando **Vercel AI SDK** (`useChat` de `ai/react`) y componentes propios
+- Autentica al usuario con **Supabase Auth** (Google + email/password) usando el Office Dialog API (`auth-dialog.html` y `auth-callback.html`)
 - Lee el contexto de Excel (rango seleccionado, hoja activa) via Office.js
 - Permite adjuntar PDFs e imágenes al chat (se envían como base64 al backend)
 - Envía requests al backend privado — nunca directamente a GROQ ni Cloudflare
@@ -40,9 +40,9 @@ POST https://axel-addin-backend.vercel.app/api/chat   → envía mensaje + conte
 GET  https://axel-addin-backend.vercel.app/api/usage  → obtiene tokens usados este mes
 ```
 
-Todos los requests incluyen el JWT de Clerk:
+Todos los requests incluyen un JWT de usuario (Supabase / backend):
 ```
-Authorization: Bearer <clerk_jwt>
+Authorization: Bearer <token>
 ```
 
 ---
@@ -86,20 +86,21 @@ Authorization: Bearer <clerk_jwt>
 
 - **React 18 + TypeScript** — sin excepciones
 - **Vite** — bundler, genera static files para el task pane
-- **assistant-ui** (`@assistant-ui/react`) — toda la UI de chat, NO construyas componentes de chat desde cero
 - **Tailwind CSS v4** — utility classes únicamente
 - **shadcn/ui** — componentes base
-- **Clerk** (`@clerk/clerk-react`) — autenticación, NO implementes auth propio
-- **Vercel AI SDK** (`ai`) — conecta assistant-ui con el backend via streaming
-- **Office.js** (`@types/office-js`) — interacción con Excel
+- **Supabase** (`@supabase/supabase-js`) — autenticación (Google + email/password)
+- **Vercel AI SDK** (`ai` v4) — `useChat` para streaming de chat y tool calls
+- **Office.js** (`@types/office-js`) — interacción con Excel y Office Dialog API
 
 ---
 
 ## Variables de entorno
 
 ```
-VITE_CLERK_PUBLISHABLE_KEY=pk_...
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
 VITE_BACKEND_URL=https://axel-addin-backend.vercel.app/api
+VITE_UPGRADE_URL=https://tudemo.lemonsqueezy.com/checkout   # opcional
 ```
 
 Para desarrollo local apuntando al backend en producción:

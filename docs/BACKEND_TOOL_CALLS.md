@@ -4,7 +4,7 @@ El add-in está preparado para **mostrar tool calls** en el chat (tarjetas "Leye
 
 ## Estado actual
 
-- **Frontend:** Renderiza `message.toolInvocations` cuando existen. Muestra tarjetas para:
+- **Frontend:** Usa `useChat` de `ai/react` (AI SDK v4) con tool calling. Renderiza `message.toolInvocations` cuando existen. Muestra tarjetas para:
   - `read_excel_range` → "Leyendo rango {range}..."
   - `write_excel_range` → preview de datos + botones Aprobar / Cancelar (ejecuta escritura via Office.js en el cliente).
 - **Backend:** El add-in no puede inspeccionar el repo privado. Si hoy el stream de `POST /api/chat` solo devuelve texto (sin partes de tipo tool), las tarjetas no aparecerán hasta que el backend envíe tool calls.
@@ -32,32 +32,20 @@ Ejemplo de herramientas sugeridas:
 
 ## Envío de tool results (cliente → backend)
 
-Cuando el usuario **no** ha aprobado/cancelado una tool, el add-in envía:
+El frontend ya **no** construye manualmente `toolCalls` y `toolResults` en el body. En su lugar:
 
-```json
-{ "message": "...", "excelContext": { ... }, "attachment": { ... } }
-```
+- Usa `maxSteps` > 1 en `useChat` y
+- Llama a `addToolResult({ toolCallId, result })` cuando el usuario aprueba o cancela una tool.
 
-Cuando el usuario aprueba o cancela una tool, el add-in hace **reload** y envía el mismo body anterior más **toolCalls** y **toolResults**, para que el backend reconstruya el turno del asistente en el array de mensajes:
+El AI SDK v4 se encarga de:
 
-```json
-{
-  "message": "<último mensaje del usuario que provocó la respuesta con tools>",
-  "excelContext": { ... },
-  "attachment": null,
-  "toolCalls": [
-    { "id": "<toolCallId>", "name": "<toolName>", "arguments": { ... } }
-  ],
-  "toolResults": [
-    { "toolCallId": "<id>", "toolName": "<name>", "result": { "success": true } }
-  ]
-}
-```
+1. Actualizar el último mensaje del asistente (`toolInvocations[*].state = "result"` y `result = {...}`).
+2. Volver a llamar al backend con el formato de stream estándar (`toDataStreamResponse` / `x-vercel-ai-ui-message-stream: v1`), incluyendo automáticamente los tool calls y tool results.
 
-- **toolCalls:** todos los tool calls del último mensaje del asistente (`id` = `toolCallId`, `name` = `toolName`, `arguments` = `args`).
-- **toolResults:** solo las invocaciones con `state === 'result'` (`toolCallId`, `toolName`, `result`). El `result` puede ser `{ success: true }`, `{ success: false, error: "..." }` o `{ cancelled: true }`.
+El backend solo necesita:
 
-El backend debe aceptar este body y, cuando existan `toolCalls` y `toolResults`, reconstruir el turno del asistente (mensaje con tool calls + results) antes de continuar el flujo del modelo.
+- Emitir tool calls en el stream cuando el modelo las genera.
+- Continuar el flujo de la conversación cuando recibe tool results del cliente (según el protocolo oficial de AI SDK v4).
 
 ## Resumen
 

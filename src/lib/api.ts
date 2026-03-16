@@ -27,7 +27,8 @@ export function getBackendUrl(): string {
 }
 
 /**
- * fetch al backend con JWT de Clerk en Authorization.
+ * fetch al backend usando los headers de autorización actuales
+ * (JWT obtenido desde la sesión de Supabase).
  */
 export async function fetchWithAuth(
   path: string,
