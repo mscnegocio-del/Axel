@@ -1,14 +1,15 @@
-import { getToken } from "@clerk/react";
+import { supabase } from "@/lib/supabase";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 /**
- * Obtiene los headers de autorización con el JWT de Clerk.
+ * Obtiene los headers de autorización con el JWT de Supabase.
  * Usar en todas las llamadas al backend (POST /api/chat, GET /api/usage).
- * Lanza si no hay sesión (getToken retorna null) para no enviar "Bearer null".
+ * Lanza si no hay sesión para no enviar "Bearer null".
  */
 export async function getAuthHeaders(): Promise<HeadersInit> {
-  const token = await getToken();
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? null;
   if (token == null) {
     throw new Error("No hay sesión activa. Inicia sesión para usar el backend.");
   }

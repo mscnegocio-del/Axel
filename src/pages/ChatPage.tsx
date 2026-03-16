@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { UserButton } from "@clerk/react";
 import { useChat } from "ai/react";
 import type { Message } from "ai/react";
 import type { JSONValue } from "@ai-sdk/ui-utils";
@@ -16,6 +15,7 @@ import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { AttachmentList } from "@/components/attachments/AttachmentList";
 import { useExcelContext } from "@/hooks/useExcelContext";
 import { useExcelWrite } from "@/hooks/useExcelWrite";
+import { supabase } from "@/lib/supabase";
 import { useFileAttachment, type Tier } from "@/hooks/useFileAttachment";
 
 type ChatPageProps = {
@@ -151,7 +151,15 @@ export default function ChatPage({
             onUpgradeClick={() => window.open(UPGRADE_URL, "_blank")}
           />
         </div>
-        <UserButton />
+        <button
+          type="button"
+          onClick={() => {
+            void supabase.auth.signOut();
+          }}
+          className="text-sm text-muted-foreground hover:underline"
+        >
+          Cerrar sesión
+        </button>
       </header>
       <main className="flex flex-1 flex-col gap-3 overflow-hidden pt-4">
         {excelContext.range && (
