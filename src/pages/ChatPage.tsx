@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
-import { useChat } from "ai/react";
-import type { Message } from "ai/react";
+import { useChat, type Message } from "ai/react";
 import type { JSONValue } from "@ai-sdk/ui-utils";
 import {
   chatFetch,

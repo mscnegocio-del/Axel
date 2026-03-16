@@ -213,6 +213,21 @@
                 } catch (e) {
                   // ignore
                 }
+
+                // Actualizar el contenido del diálogo para indicar que puede cerrarse.
+                try {
+                  var card = document.querySelector(".card");
+                  if (card) {
+                    card.innerHTML =
+                      '<div style="font-size:48px; color:#16a34a; margin-bottom:8px;">&#10003;</div>' +
+                      '<div style="font-size:18px; font-weight:600; margin-bottom:4px;">¡Listo!</div>' +
+                      '<div style="font-size:13px; color:#6b7280;">Ya puedes cerrar esta ventana y continuar en Excel.</div>';
+                  }
+                } catch (e) {
+                  // ignore
+                }
+
+                // Algunos hosts permiten cerrar la ventana desde aquí; si no, el usuario la cierra manualmente.
                 window.close();
               });
             })
