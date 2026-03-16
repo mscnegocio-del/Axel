@@ -17,7 +17,11 @@ export function useExcelWrite(): (
     }
     try {
       await Excel.run(async (context) => {
-        const sheet = context.workbook.worksheets.getItem(sheetName);
+        let sheet = context.workbook.worksheets.getItemOrNullObject(sheetName);
+        await context.sync();
+        if (sheet.isNullObject) {
+          sheet = context.workbook.worksheets.add(sheetName);
+        }
         const range = sheet.getRange(rangeAddress);
         range.values = values as string[][];
         await context.sync();
