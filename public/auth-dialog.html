@@ -269,13 +269,12 @@
                 message.toLowerCase().includes("user already registered") ||
                 message.toLowerCase().includes("already registered")
               ) {
-                setError("Ya tienes una cuenta. Ve a Iniciar sesión.");
-                showSignin();
+                setError(
+                  "Ya tienes una cuenta. Ve a Iniciar sesión (usa la pestaña de arriba)."
+                );
                 return;
               }
-              setError(
-                "Error al registrarse: " + message
-              );
+              setError("Error al registrarse: " + message);
             });
         });
 
