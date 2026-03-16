@@ -198,6 +198,14 @@
                     refresh_token: session.refresh_token,
                   })
                 );
+                try {
+                  if (Office.context && Office.context.ui) {
+                    Office.context.ui.closeContainer();
+                  }
+                } catch (e) {
+                  // ignore
+                }
+                window.close();
               });
             })
             .catch(function (err) {
@@ -223,7 +231,13 @@
           }
 
           supabaseClient.auth
-            .signUp({ email: email, password: password })
+            .signUp({
+              email: email,
+              password: password,
+              options: {
+                emailRedirectTo: "https://axel.habla.cloud/auth-callback.html",
+              },
+            })
             .then(function (result) {
               if (result.error) {
                 throw result.error;
