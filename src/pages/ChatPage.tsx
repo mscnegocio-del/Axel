@@ -49,6 +49,7 @@ export default function ChatPage({
   const attachmentState = useFileAttachment(tier);
   const executeWrite = useExcelWrite();
   const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
 
   const {
     messages,
@@ -101,20 +102,54 @@ export default function ChatPage({
         toolResults,
       }) as JSONValue;
     },
-    onResponse: (res) => {
-      if (res.status === 429) {
-        onLimitExceeded();
+    onResponse: async (res) => {
+      if (res.status !== 429) return;
+
+      try {
+        const cloned = res.clone();
+        const data = (await cloned.json().catch(() => null)) as
+          | { message?: string; code?: string }
+          | null;
+
+        const message = typeof data?.message === "string" ? data.message : "";
+        const code = typeof data?.code === "string" ? data.code : "";
+
+        // Reset mensaje previo
+        setRateLimitMessage(null);
+
+        if (code === "TOKEN_LIMIT_EXCEEDED") {
+          onLimitExceeded();
+          return;
+        }
+
+        const lower = message.toLowerCase();
+
+        if (lower.includes("cooldown")) {
+          setRateLimitMessage("Espera unos segundos antes de enviar otro mensaje.");
+          return;
+        }
+
+        if (lower.includes("hourly") || lower.includes("rate limit")) {
+          setRateLimitMessage(
+            "Has enviado demasiados mensajes. Intenta de nuevo en unos minutos."
+          );
+          return;
+        }
+
+        // Fallback genérico para otros 429 sin upgrade
+        setRateLimitMessage("Demasiadas solicitudes. Intenta más tarde.");
+      } catch {
+        // Si algo falla al leer el body, no mostramos upgrade ni mensaje específico
       }
     },
     // Tras cada envío exitoso: limpiar adjuntos y refrescar contador de tokens.
     onFinish: () => {
       attachmentState.clear();
       void tokenUsageRefetch();
+      setRateLimitMessage(null);
     },
-    onError: (err) => {
-      if (err.message?.includes("429") || err.message?.includes("Límite")) {
-        onLimitExceeded();
-      }
+    onError: () => {
+      // Los 429 se manejan en onResponse con lógica más fina.
     },
   });
 
@@ -169,6 +204,9 @@ export default function ChatPage({
         />
         {error && (
           <p className="text-destructive text-sm">{error.message}</p>
+        )}
+        {rateLimitMessage && !error && (
+          <p className="text-muted-foreground text-sm">{rateLimitMessage}</p>
         )}
         <form onSubmit={handleSubmit} className="flex flex-col gap-2">
           <div className="flex gap-2">
