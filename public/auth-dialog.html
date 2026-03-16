@@ -42,16 +42,25 @@
         font-size: 0.875rem;
         font-weight: 500;
       }
-      .btn-google {
-        background-color: #2563eb;
-        color: #ffffff;
+      .tabs {
+        display: flex;
+        gap: 0.25rem;
         margin-bottom: 0.75rem;
       }
-      .divider {
-        height: 1px;
-        width: 100%;
-        background-color: #e5e7eb;
-        margin: 0.75rem 0;
+      .tab {
+        flex: 1;
+        padding: 0.35rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        border: 1px solid #e5e7eb;
+        background-color: #f9fafb;
+        color: #4b5563;
+      }
+      .tab.active {
+        background-color: #111827;
+        color: #f9fafb;
+        border-color: #111827;
       }
       .label {
         font-size: 0.75rem;
@@ -89,21 +98,32 @@
     <div class="card">
       <div class="title">Inicia sesión en Axel</div>
       <div class="subtitle">
-        Usa tu cuenta de Google o correo y contraseña para autenticarte.
+        Usa tu correo y contraseña para acceder a Axel.
       </div>
-      <button id="google-btn" class="btn btn-google">Continuar con Google</button>
-      <div class="divider"></div>
-      <form id="email-form">
+      <div class="tabs">
+        <button id="tab-signin" class="tab active">Iniciar sesión</button>
+        <button id="tab-signup" class="tab">Registrarse</button>
+      </div>
+      <form id="signin-form">
         <div class="label">Correo electrónico</div>
-        <input id="email-input" class="input" type="email" required />
+        <input id="signin-email" class="input" type="email" required />
         <div class="label">Contraseña</div>
-        <input id="password-input" class="input" type="password" required />
-        <button type="submit" class="btn btn-email">Entrar con email</button>
+        <input id="signin-password" class="input" type="password" required />
+        <button type="submit" class="btn btn-email">Entrar</button>
+      </form>
+      <form id="signup-form" style="display: none">
+        <div class="label">Correo electrónico</div>
+        <input id="signup-email" class="input" type="email" required />
+        <div class="label">Contraseña</div>
+        <input id="signup-password" class="input" type="password" required />
+        <div class="label">Confirmar contraseña</div>
+        <input id="signup-password-confirm" class="input" type="password" required />
+        <button type="submit" class="btn btn-email">Registrarse</button>
       </form>
       <div id="error" class="error" style="display: none"></div>
       <div class="info">
-        Esta ventana se abrirá fuera de Excel para completar el proceso de inicio
-        de sesión.
+        Tras registrarte, revisa tu correo para confirmar tu cuenta antes de
+        iniciar sesión.
       </div>
     </div>
 
@@ -119,65 +139,108 @@
         );
 
         var errorEl = document.getElementById("error");
+        var tabSignin = document.getElementById("tab-signin");
+        var tabSignup = document.getElementById("tab-signup");
+        var signinForm = document.getElementById("signin-form");
+        var signupForm = document.getElementById("signup-form");
+
+        function showSignin() {
+          tabSignin.classList.add("active");
+          tabSignup.classList.remove("active");
+          signinForm.style.display = "block";
+          signupForm.style.display = "none";
+          setError("");
+        }
+
+        function showSignup() {
+          tabSignup.classList.add("active");
+          tabSignin.classList.remove("active");
+          signinForm.style.display = "none";
+          signupForm.style.display = "block";
+          setError("");
+        }
 
         function setError(message) {
           errorEl.textContent = message;
           errorEl.style.display = message ? "block" : "none";
         }
 
-        document
-          .getElementById("google-btn")
-          .addEventListener("click", function () {
-            setError("");
-            supabaseClient.auth
-              .signInWithOAuth({
-                provider: "google",
-                options: {
-                  redirectTo: "https://axel.habla.cloud/auth-callback.html",
-                },
-              })
-              .catch(function (err) {
-                setError(
-                  "No se pudo iniciar sesión con Google: " + (err.message || err)
-                );
-              });
-          });
+        tabSignin.addEventListener("click", function () {
+          showSignin();
+        });
 
-        document
-          .getElementById("email-form")
-          .addEventListener("submit", function (e) {
+        tabSignup.addEventListener("click", function () {
+          showSignup();
+        });
+
+        signinForm.addEventListener("submit", function (e) {
             e.preventDefault();
             setError("");
 
-            var email = document.getElementById("email-input").value;
-            var password = document.getElementById("password-input").value;
+          var email = document.getElementById("signin-email").value;
+          var password = document.getElementById("signin-password").value;
 
-            supabaseClient.auth
-              .signInWithPassword({ email: email, password: password })
-              .then(function (result) {
-                if (result.error) {
-                  throw result.error;
-                }
-                var session = result.data.session;
-                if (!session) {
-                  throw new Error("No se recibió sesión de Supabase.");
-                }
+          supabaseClient.auth
+            .signInWithPassword({ email: email, password: password })
+            .then(function (result) {
+              if (result.error) {
+                throw result.error;
+              }
+              var session = result.data.session;
+              if (!session) {
+                throw new Error("No se recibió sesión de Supabase.");
+              }
 
-                Office.onReady(function () {
-                  Office.context.ui.messageParent(
-                    JSON.stringify({
-                      access_token: session.access_token,
-                      refresh_token: session.refresh_token,
-                    })
-                  );
-                });
-              })
-              .catch(function (err) {
-                setError(
-                  "Error al iniciar sesión con email: " + (err.message || err)
+              Office.onReady(function () {
+                Office.context.ui.messageParent(
+                  JSON.stringify({
+                    access_token: session.access_token,
+                    refresh_token: session.refresh_token,
+                  })
                 );
               });
-          });
+            })
+            .catch(function (err) {
+              setError(
+                "Error al iniciar sesión: " + (err.message || String(err))
+              );
+            });
+        });
+
+        signupForm.addEventListener("submit", function (e) {
+          e.preventDefault();
+          setError("");
+
+          var email = document.getElementById("signup-email").value;
+          var password = document.getElementById("signup-password").value;
+          var passwordConfirm = document.getElementById(
+            "signup-password-confirm"
+          ).value;
+
+          if (password !== passwordConfirm) {
+            setError("Las contraseñas no coinciden.");
+            return;
+          }
+
+          supabaseClient.auth
+            .signUp({ email: email, password: password })
+            .then(function (result) {
+              if (result.error) {
+                throw result.error;
+              }
+              setError(
+                "Revisa tu correo para confirmar tu cuenta antes de iniciar sesión."
+              );
+            })
+            .catch(function (err) {
+              setError(
+                "Error al registrarse: " + (err.message || String(err))
+              );
+            });
+        });
+
+        // Estado inicial: pestaña de inicio de sesión
+        showSignin();
       })();
     </script>
   </body>
