@@ -15,7 +15,8 @@
 
 Axel es el **frontend del add-in de Excel**: una aplicación React (Vite + TypeScript) que se ejecuta dentro del task pane de Excel. La autenticación la gestiona **Supabase Auth** (via Office Dialog); el chat, el uso de tokens y la lógica de negocio están en un **backend desplegado** (`https://axel-addin-backend.vercel.app/api`). Este repositorio solo contiene el add-in; no incluye el backend.
 
-- **Chat con IA** usando el contexto de la hoja activa y rango seleccionado (Office.js).
+- **Chat con IA** con contexto reactivo de la hoja activa (Office.js): se actualiza al cambiar de hoja o editar datos.
+- **Tool calls de Excel**: el modelo puede leer rangos, escribir datos, formatear celdas, crear tablas, ordenar, filtrar, insertar gráficos y navegar — con tarjetas de confirmación (Aprobar/Cancelar) para las operaciones destructivas.
 - **Adjuntos** (PDF) con límites por plan (Free: 1 archivo ≤5MB; Pro: hasta 5 archivos ≤20MB).
 - **Uso de tokens** mostrado en la UI; redirección a upgrade cuando se supera el límite del plan.
 - **Planes Free/Pro** con redirección a Lemon Squeezy para checkout.
@@ -110,9 +111,24 @@ El add-in se despliega como sitio estático en **Vercel**. El backend ya está d
 
 ```
 src/
-├── components/     # Chat, auth, billing, excel, attachments, ui (shadcn)
-├── hooks/          # useExcelContext, useTokenUsage, useFileAttachment, useModelSelector
-├── lib/            # assistant, api, supabase, utils
+├── components/
+│   ├── chat/           # ChatMessageList, ToolCallCards, SuggestedFollowups
+│   ├── auth/           # Login via Office Dialog + Supabase
+│   ├── billing/        # TokenUsageDisplay, UpgradePage
+│   ├── excel/          # Botones de acción
+│   └── attachments/    # Upload PDFs, preview
+├── hooks/
+│   ├── useExcelContext.ts    # Contexto reactivo de Excel (hoja, usedRange, selectedRange)
+│   ├── useExcelWrite.ts      # write_excel_range (crea hoja si no existe)
+│   ├── useExcelTools.ts      # format_range, create_table, sort_range, filter_range, create_chart
+│   ├── useTokenUsage.ts
+│   ├── useFileAttachment.ts
+│   └── useModelSelector.ts
+├── lib/
+│   ├── assistant.ts     # prepareChatBody + inyección TSV del contexto Excel
+│   ├── toolCalls.ts     # Constantes, tipos y parsers de las 10 tools de Excel
+│   ├── api.ts           # fetchWithAuth (JWT de Supabase)
+│   └── supabase.ts
 ├── pages/          # ChatPage, LoginPage, UpgradePage
 ├── App.tsx
 ├── main.tsx        # Montaje tras Office.onReady()
@@ -120,6 +136,7 @@ src/
 ```
 
 - **Manifests:** `manifest.xml` (desarrollo, localhost) y `manifest.vercel.xml` (producción).
+- **`public/auth-dialog.html`** y **`public/auth-callback.html`**: páginas standalone para el flujo de autenticación via Office Dialog API.
 
 ## Documentación adicional
 

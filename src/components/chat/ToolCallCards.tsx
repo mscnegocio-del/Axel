@@ -17,6 +17,12 @@ type ActionCardProps = {
   state: ToolState;
   result?: unknown;
   isExecuting?: boolean;
+  /**
+   * El usuario ya aprobó o canceló esta tool. Se usa para suprimir los botones
+   * inmediatamente, antes de que `addToolResult` haya commitado el nuevo estado,
+   * evitando que la tarjeta reaparezca en estado "call" durante el re-render.
+   */
+  isResolved?: boolean;
   onApprove: () => void;
   onCancel: () => void;
   label: string;
@@ -29,13 +35,16 @@ function ActionCard({
   state,
   result,
   isExecuting = false,
+  isResolved = false,
   onApprove,
   onCancel,
   label,
   successMessage = "Completado.",
   children,
 }: ActionCardProps) {
-  const isPending = state === "call" || state === "partial-call";
+  // isPending es false si el usuario ya resolvió la tool (isResolved),
+  // aunque el estado del mensaje todavía no haya actualizado a "result".
+  const isPending = (state === "call" || state === "partial-call") && !isResolved;
   const hasResult = state === "result";
   const isSuccess =
     result && typeof result === "object" && "success" in result
@@ -174,6 +183,7 @@ type WriteRangeCardProps = {
   onApprove: () => void;
   onCancel: () => void;
   isExecuting?: boolean;
+  isResolved?: boolean;
 };
 
 export function WriteRangeCard({
@@ -186,8 +196,9 @@ export function WriteRangeCard({
   onApprove,
   onCancel,
   isExecuting = false,
+  isResolved = false,
 }: WriteRangeCardProps) {
-  const isPending = state === "call" || state === "partial-call";
+  const isPending = (state === "call" || state === "partial-call") && !isResolved;
 
   return (
     <ActionCard
@@ -195,6 +206,7 @@ export function WriteRangeCard({
       state={state}
       result={result}
       isExecuting={isExecuting}
+      isResolved={isResolved}
       onApprove={onApprove}
       onCancel={onCancel}
       label={`Escribir en ${sheetName ?? "hoja"} · ${range ?? "rango"}`}
@@ -237,6 +249,7 @@ type FormatRangeCardProps = {
   onApprove: () => void;
   onCancel: () => void;
   isExecuting?: boolean;
+  isResolved?: boolean;
 };
 
 export function FormatRangeCard({
@@ -247,6 +260,7 @@ export function FormatRangeCard({
   onApprove,
   onCancel,
   isExecuting,
+  isResolved,
 }: FormatRangeCardProps) {
   const { range, sheetName, fillColor, bold, fontColor, numberFormat } = args;
   return (
@@ -259,6 +273,7 @@ export function FormatRangeCard({
       onCancel={onCancel}
       label={`Formatear ${range ?? "rango"} en ${sheetName ?? "hoja activa"}`}
       successMessage="Formato aplicado."
+      isResolved={isResolved}
     >
       <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         {fillColor && (
@@ -312,6 +327,7 @@ type CreateTableCardProps = {
   onApprove: () => void;
   onCancel: () => void;
   isExecuting?: boolean;
+  isResolved?: boolean;
 };
 
 export function CreateTableCard({
@@ -322,6 +338,7 @@ export function CreateTableCard({
   onApprove,
   onCancel,
   isExecuting,
+  isResolved,
 }: CreateTableCardProps) {
   const { range, sheetName, hasHeaders, tableName } = args;
   return (
@@ -334,6 +351,7 @@ export function CreateTableCard({
       onCancel={onCancel}
       label={`Crear tabla en ${range ?? "rango"} (${sheetName ?? "hoja activa"})`}
       successMessage="Tabla creada correctamente."
+      isResolved={isResolved}
     >
       <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         <dt className="text-muted-foreground">Rango</dt>
@@ -361,6 +379,7 @@ type SortRangeCardProps = {
   onApprove: () => void;
   onCancel: () => void;
   isExecuting?: boolean;
+  isResolved?: boolean;
 };
 
 export function SortRangeCard({
@@ -371,6 +390,7 @@ export function SortRangeCard({
   onApprove,
   onCancel,
   isExecuting,
+  isResolved,
 }: SortRangeCardProps) {
   const { range, sheetName, columnIndex = 0, ascending = true } = args;
   return (
@@ -383,6 +403,7 @@ export function SortRangeCard({
       onCancel={onCancel}
       label={`Ordenar ${range ?? "rango"} por columna ${columnIndex + 1}`}
       successMessage="Rango ordenado."
+      isResolved={isResolved}
     >
       <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         <dt className="text-muted-foreground">Rango</dt>
@@ -412,6 +433,7 @@ type FilterRangeCardProps = {
   onApprove: () => void;
   onCancel: () => void;
   isExecuting?: boolean;
+  isResolved?: boolean;
 };
 
 export function FilterRangeCard({
@@ -422,6 +444,7 @@ export function FilterRangeCard({
   onApprove,
   onCancel,
   isExecuting,
+  isResolved,
 }: FilterRangeCardProps) {
   const { range, sheetName, columnIndex = 0, criterion } = args;
   return (
@@ -434,6 +457,7 @@ export function FilterRangeCard({
       onCancel={onCancel}
       label={`Filtrar columna ${columnIndex + 1} en ${range ?? "rango"}`}
       successMessage="Filtro aplicado."
+      isResolved={isResolved}
     >
       <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         <dt className="text-muted-foreground">Rango</dt>
@@ -467,6 +491,7 @@ type CreateChartCardProps = {
   onApprove: () => void;
   onCancel: () => void;
   isExecuting?: boolean;
+  isResolved?: boolean;
 };
 
 const CHART_TYPE_LABELS: Record<string, string> = {
@@ -486,6 +511,7 @@ export function CreateChartCard({
   onApprove,
   onCancel,
   isExecuting,
+  isResolved,
 }: CreateChartCardProps) {
   const { range, sheetName, chartType = "ColumnClustered", title } = args;
   const typeLabel = CHART_TYPE_LABELS[chartType] ?? chartType;
@@ -500,6 +526,7 @@ export function CreateChartCard({
       onCancel={onCancel}
       label={`Crear gráfico de ${typeLabel.toLowerCase()} con ${range ?? "rango"}`}
       successMessage="Gráfico creado."
+      isResolved={isResolved}
     >
       <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         <dt className="text-muted-foreground">Tipo</dt>

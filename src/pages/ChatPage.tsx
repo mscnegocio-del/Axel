@@ -86,6 +86,11 @@ export default function ChatPage({
   const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
 
+  // Set de toolCallIds de confirmación ya resueltos (aprobados o cancelados).
+  // Se usa para suprimir los botones Aprobar/Cancelar inmediatamente tras el clic,
+  // antes de que addToolResult haya actualizado el estado del mensaje.
+  const resolvedConfirmToolsRef = useRef(new Set<string>());
+
   const {
     messages,
     input,
@@ -182,6 +187,9 @@ export default function ChatPage({
 
   const onToolResult = useCallback(
     (_messageId: string, toolCallId: string, result: unknown) => {
+      // Registrar el ID antes de llamar a addToolResult para que el guard de
+      // isResolved en ChatMessageList ya esté activo en el próximo re-render.
+      resolvedConfirmToolsRef.current.add(toolCallId);
       addToolResult({ toolCallId, result });
     },
     [addToolResult]
@@ -427,6 +435,7 @@ export default function ChatPage({
           onToolResult={onToolResult}
           executingToolCallId={executingToolCallId}
           setExecutingToolCallId={setExecutingToolCallId}
+          resolvedToolCallIds={resolvedConfirmToolsRef.current}
           onSuggestedFollowup={onSuggestedFollowup}
         />
         <AttachmentList

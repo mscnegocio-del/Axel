@@ -76,6 +76,12 @@ type ChatMessageListProps = {
   /** Tool call id ejecutándose actualmente */
   executingToolCallId?: string | null;
   setExecutingToolCallId?: (id: string | null) => void;
+  /**
+   * Set de toolCallIds cuya confirmación ya fue enviada al SDK (aprobadas o canceladas).
+   * Permite suprimir los botones Aprobar/Cancelar de forma inmediata antes de que
+   * addToolResult actualice el estado del mensaje, previniendo el loop de tarjetas.
+   */
+  resolvedToolCallIds?: ReadonlySet<string>;
   /** Llamado al hacer clic en un followup sugerido */
   onSuggestedFollowup?: (suggestion: string) => void;
 };
@@ -93,6 +99,7 @@ export function ChatMessageList({
   onToolResult,
   executingToolCallId = null,
   setExecutingToolCallId,
+  resolvedToolCallIds,
   onSuggestedFollowup,
 }: ChatMessageListProps) {
   return (
@@ -193,6 +200,11 @@ export function ChatMessageList({
                   );
                 }
 
+                // isResolved: el usuario ya aprobó/canceló esta tool.
+                // Suprime los botones inmediatamente, antes de que addToolResult
+                // haya actualizado el estado del mensaje, evitando el loop de cards.
+                const isResolved = resolvedToolCallIds?.has(toolCallId) ?? false;
+
                 // ── Confirm: write_excel_range ──────────────────────────────
                 if (toolName === TOOL_WRITE_EXCEL_RANGE) {
                   const { range, sheetName, data } = parseWriteRangeArgs(args);
@@ -207,6 +219,7 @@ export function ChatMessageList({
                       state={state}
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
                       onApprove={async () => {
                         if (!executeWrite || !onToolResult || !range || !sheetName) return;
                         setExecutingToolCallId?.(toolCallId);
@@ -235,6 +248,7 @@ export function ChatMessageList({
                       state={state}
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
                       onApprove={async () => {
                         if (!executeFormat || !onToolResult) return;
                         setExecutingToolCallId?.(toolCallId);
@@ -263,6 +277,7 @@ export function ChatMessageList({
                       state={state}
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
                       onApprove={async () => {
                         if (!executeCreateTable || !onToolResult) return;
                         setExecutingToolCallId?.(toolCallId);
@@ -291,6 +306,7 @@ export function ChatMessageList({
                       state={state}
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
                       onApprove={async () => {
                         if (!executeSortRange || !onToolResult) return;
                         setExecutingToolCallId?.(toolCallId);
@@ -319,6 +335,7 @@ export function ChatMessageList({
                       state={state}
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
                       onApprove={async () => {
                         if (!executeFilterRange || !onToolResult) return;
                         setExecutingToolCallId?.(toolCallId);
@@ -347,6 +364,7 @@ export function ChatMessageList({
                       state={state}
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
                       onApprove={async () => {
                         if (!executeCreateChart || !onToolResult) return;
                         setExecutingToolCallId?.(toolCallId);
