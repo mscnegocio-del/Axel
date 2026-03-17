@@ -15,6 +15,7 @@ import { useExcelContext } from "@/hooks/useExcelContext";
 import { useExcelWrite } from "@/hooks/useExcelWrite";
 import { supabase } from "@/lib/supabase";
 import { useFileAttachment, type Tier } from "@/hooks/useFileAttachment";
+import { TOOL_READ_EXCEL_RANGE, parseReadRangeArgs } from "@/lib/toolCalls";
 
 type ChatPageProps = {
   tier: Tier;
@@ -170,6 +171,74 @@ export default function ChatPage({
     },
     [addToolResult]
   );
+
+  // IDs de read_excel_range ya procesados (evita doble ejecución por re-renders).
+  const executedReadToolsRef = useRef(new Set<string>());
+
+  /**
+   * Cuando el backend dispara read_excel_range, el frontend debe leer el rango
+   * de Excel automáticamente y devolver los datos via addToolResult.
+   * Sin esto, el backend espera el result indefinidamente y la conversación se cuelga.
+   */
+  useEffect(() => {
+    for (const msg of messages) {
+      if (msg.role !== "assistant") continue;
+      const invocations = msg.toolInvocations;
+      if (!Array.isArray(invocations)) continue;
+
+      for (const inv of invocations) {
+        if (inv.state !== "call" || inv.toolName !== TOOL_READ_EXCEL_RANGE) continue;
+
+        const { toolCallId } = inv;
+        if (executedReadToolsRef.current.has(toolCallId)) continue;
+        executedReadToolsRef.current.add(toolCallId);
+
+        const { range } = parseReadRangeArgs(inv.args);
+
+        if (!range) {
+          addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
+          continue;
+        }
+
+        if (typeof Excel === "undefined") {
+          addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
+          continue;
+        }
+
+        // El rango puede venir como "Hoja1!A1:D10" o simplemente "A1:D10".
+        let sheetId: string | undefined;
+        let rangeAddr = range;
+        if (range.includes("!")) {
+          const idx = range.indexOf("!");
+          sheetId = range.slice(0, idx).replace(/'/g, "");
+          rangeAddr = range.slice(idx + 1);
+        }
+
+        void Excel.run(async (context) => {
+          const sheet = sheetId
+            ? context.workbook.worksheets.getItem(sheetId)
+            : context.workbook.worksheets.getActiveWorksheet();
+          const r = sheet.getRange(rangeAddr);
+          r.load(["address", "values", "rowCount", "columnCount"]);
+          await context.sync();
+          addToolResult({
+            toolCallId,
+            result: {
+              address: r.address,
+              values: r.values,
+              rowCount: r.rowCount,
+              columnCount: r.columnCount,
+            },
+          });
+        }).catch((e: unknown) => {
+          addToolResult({
+            toolCallId,
+            result: { error: e instanceof Error ? e.message : String(e) },
+          });
+        });
+      }
+    }
+  }, [messages, addToolResult]);
 
   /**
    * Wrapper del submit del formulario:
