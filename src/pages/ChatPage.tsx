@@ -13,9 +13,29 @@ import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { AttachmentList } from "@/components/attachments/AttachmentList";
 import { useExcelContext } from "@/hooks/useExcelContext";
 import { useExcelWrite } from "@/hooks/useExcelWrite";
+import {
+  useExcelFormat,
+  useExcelCreateTable,
+  useExcelSortRange,
+  useExcelFilterRange,
+  useExcelCreateChart,
+} from "@/hooks/useExcelTools";
 import { supabase } from "@/lib/supabase";
 import { useFileAttachment, type Tier } from "@/hooks/useFileAttachment";
-import { TOOL_READ_EXCEL_RANGE, parseReadRangeArgs } from "@/lib/toolCalls";
+import {
+  TOOL_READ_EXCEL_RANGE,
+  TOOL_LIST_SHEETS,
+  TOOL_NAVIGATE_TO_CELL,
+  TOOL_HIGHLIGHT_CELLS,
+  parseReadRangeArgs,
+  parseNavigateToCellArgs,
+  parseHighlightCellsArgs,
+  parseFormatRangeArgs,
+  parseCreateTableArgs,
+  parseSortRangeArgs,
+  parseFilterRangeArgs,
+  parseCreateChartArgs,
+} from "@/lib/toolCalls";
 
 type ChatPageProps = {
   tier: Tier;
@@ -48,16 +68,21 @@ export default function ChatPage({
   const { excelContext, getContextForMessage } = useExcelContext();
 
   // Ref con el contexto que se incluirá en el próximo request.
-  // Se actualiza por dos vías:
-  //   1. useEffect a continuación — cada vez que los listeners del hook actualizan el estado.
-  //   2. onFormSubmit — justo antes de cada envío manual, lee Excel en vivo.
   const pendingContextRef = useRef(excelContext);
-
   useEffect(() => {
     pendingContextRef.current = excelContext;
   }, [excelContext]);
+
   const attachmentState = useFileAttachment(tier);
+
+  // ── Hooks de ejecución de tools ────────────────────────────────────────────
   const executeWrite = useExcelWrite();
+  const executeFormat = useExcelFormat();
+  const executeCreateTable = useExcelCreateTable();
+  const executeSortRange = useExcelSortRange();
+  const executeFilterRange = useExcelFilterRange();
+  const executeCreateChart = useExcelCreateChart();
+
   const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
 
@@ -66,6 +91,7 @@ export default function ChatPage({
     input,
     handleInputChange,
     handleSubmit,
+    append,
     isLoading,
     error,
     addToolResult,
@@ -80,8 +106,6 @@ export default function ChatPage({
       const extra = (requestBody ?? {}) as {
         attachment?: AttachmentPayload | null;
       };
-      // pendingContextRef.current siempre tiene el contexto más reciente:
-      // actualizado por listeners (onActivated/onChanged) y por onFormSubmit justo antes del envío.
       const ctx = pendingContextRef.current;
 
       const last = msgs[msgs.length - 1];
@@ -116,7 +140,6 @@ export default function ChatPage({
     },
     onResponse: async (res) => {
       if (res.status !== 429) return;
-
       try {
         const cloned = res.clone();
         const data = (await cloned.json().catch(() => null)) as
@@ -126,7 +149,6 @@ export default function ChatPage({
         const message = typeof data?.message === "string" ? data.message : "";
         const code = typeof data?.code === "string" ? data.code : "";
 
-        // Reset mensaje previo
         setRateLimitMessage(null);
 
         if (code === "TOKEN_LIMIT_EXCEEDED") {
@@ -135,26 +157,19 @@ export default function ChatPage({
         }
 
         const lower = message.toLowerCase();
-
         if (lower.includes("cooldown")) {
           setRateLimitMessage("Espera unos segundos antes de enviar otro mensaje.");
           return;
         }
-
         if (lower.includes("hourly") || lower.includes("rate limit")) {
-          setRateLimitMessage(
-            "Has enviado demasiados mensajes. Intenta de nuevo en unos minutos."
-          );
+          setRateLimitMessage("Has enviado demasiados mensajes. Intenta de nuevo en unos minutos.");
           return;
         }
-
-        // Fallback genérico para otros 429 sin upgrade
         setRateLimitMessage("Demasiadas solicitudes. Intenta más tarde.");
       } catch {
-        // Si algo falla al leer el body, no mostramos upgrade ni mensaje específico
+        // No hacer nada si falla al leer el body
       }
     },
-    // Tras cada envío exitoso: limpiar adjuntos y refrescar contador de tokens.
     onFinish: () => {
       attachmentState.clear();
       void tokenUsageRefetch();
@@ -172,14 +187,10 @@ export default function ChatPage({
     [addToolResult]
   );
 
-  // IDs de read_excel_range ya procesados (evita doble ejecución por re-renders).
-  const executedReadToolsRef = useRef(new Set<string>());
+  // ── Auto-execute tools ─────────────────────────────────────────────────────
+  // IDs ya procesados para evitar doble ejecución por re-renders.
+  const executedAutoToolsRef = useRef(new Set<string>());
 
-  /**
-   * Cuando el backend dispara read_excel_range, el frontend debe leer el rango
-   * de Excel automáticamente y devolver los datos via addToolResult.
-   * Sin esto, el backend espera el result indefinidamente y la conversación se cuelga.
-   */
   useEffect(() => {
     for (const msg of messages) {
       if (msg.role !== "assistant") continue;
@@ -187,64 +198,170 @@ export default function ChatPage({
       if (!Array.isArray(invocations)) continue;
 
       for (const inv of invocations) {
-        if (inv.state !== "call" || inv.toolName !== TOOL_READ_EXCEL_RANGE) continue;
+        if (inv.state !== "call") continue;
 
-        const { toolCallId } = inv;
-        if (executedReadToolsRef.current.has(toolCallId)) continue;
-        executedReadToolsRef.current.add(toolCallId);
+        const { toolCallId, toolName } = inv as { toolCallId: string; toolName: string; args?: unknown };
+        if (executedAutoToolsRef.current.has(toolCallId)) continue;
 
-        const { range } = parseReadRangeArgs(inv.args);
+        // ── read_excel_range ────────────────────────────────────────────────
+        if (toolName === TOOL_READ_EXCEL_RANGE) {
+          executedAutoToolsRef.current.add(toolCallId);
+          const { range } = parseReadRangeArgs(inv.args);
 
-        if (!range) {
-          addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
-          continue;
-        }
+          if (!range) {
+            addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
+            continue;
+          }
+          if (typeof Excel === "undefined") {
+            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
+            continue;
+          }
 
-        if (typeof Excel === "undefined") {
-          addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
-          continue;
-        }
+          let sheetId: string | undefined;
+          let rangeAddr = range;
+          if (range.includes("!")) {
+            const idx = range.indexOf("!");
+            sheetId = range.slice(0, idx).replace(/'/g, "");
+            rangeAddr = range.slice(idx + 1);
+          }
 
-        // El rango puede venir como "Hoja1!A1:D10" o simplemente "A1:D10".
-        let sheetId: string | undefined;
-        let rangeAddr = range;
-        if (range.includes("!")) {
-          const idx = range.indexOf("!");
-          sheetId = range.slice(0, idx).replace(/'/g, "");
-          rangeAddr = range.slice(idx + 1);
-        }
-
-        void Excel.run(async (context) => {
-          const sheet = sheetId
-            ? context.workbook.worksheets.getItem(sheetId)
-            : context.workbook.worksheets.getActiveWorksheet();
-          const r = sheet.getRange(rangeAddr);
-          r.load(["address", "values", "rowCount", "columnCount"]);
-          await context.sync();
-          addToolResult({
-            toolCallId,
-            result: {
-              address: r.address,
-              values: r.values,
-              rowCount: r.rowCount,
-              columnCount: r.columnCount,
-            },
+          void Excel.run(async (context) => {
+            const sheet = sheetId
+              ? context.workbook.worksheets.getItem(sheetId)
+              : context.workbook.worksheets.getActiveWorksheet();
+            const r = sheet.getRange(rangeAddr);
+            r.load(["address", "values", "rowCount", "columnCount"]);
+            await context.sync();
+            addToolResult({
+              toolCallId,
+              result: {
+                address: r.address,
+                values: r.values,
+                rowCount: r.rowCount,
+                columnCount: r.columnCount,
+              },
+            });
+          }).catch((e: unknown) => {
+            addToolResult({
+              toolCallId,
+              result: { error: e instanceof Error ? e.message : String(e) },
+            });
           });
-        }).catch((e: unknown) => {
-          addToolResult({
-            toolCallId,
-            result: { error: e instanceof Error ? e.message : String(e) },
+        }
+
+        // ── list_sheets ─────────────────────────────────────────────────────
+        else if (toolName === TOOL_LIST_SHEETS) {
+          executedAutoToolsRef.current.add(toolCallId);
+          if (typeof Excel === "undefined") {
+            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
+            continue;
+          }
+          void Excel.run(async (context) => {
+            const sheets = context.workbook.worksheets;
+            sheets.load("name");
+            await context.sync();
+            addToolResult({
+              toolCallId,
+              result: { sheets: sheets.items.map((s) => s.name) },
+            });
+          }).catch((e: unknown) => {
+            addToolResult({
+              toolCallId,
+              result: { error: e instanceof Error ? e.message : String(e) },
+            });
           });
-        });
+        }
+
+        // ── navigate_to_cell ────────────────────────────────────────────────
+        else if (toolName === TOOL_NAVIGATE_TO_CELL) {
+          executedAutoToolsRef.current.add(toolCallId);
+          const { range, sheetName } = parseNavigateToCellArgs(inv.args);
+
+          if (!range) {
+            addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
+            continue;
+          }
+          if (typeof Excel === "undefined") {
+            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
+            continue;
+          }
+
+          void Excel.run(async (context) => {
+            const sheet = sheetName
+              ? context.workbook.worksheets.getItem(sheetName)
+              : context.workbook.worksheets.getActiveWorksheet();
+            const r = sheet.getRange(range.includes("!") ? range.slice(range.indexOf("!") + 1) : range);
+            r.select();
+            await context.sync();
+            addToolResult({ toolCallId, result: { success: true } });
+          }).catch((e: unknown) => {
+            addToolResult({
+              toolCallId,
+              result: { error: e instanceof Error ? e.message : String(e) },
+            });
+          });
+        }
+
+        // ── highlight_cells ─────────────────────────────────────────────────
+        else if (toolName === TOOL_HIGHLIGHT_CELLS) {
+          executedAutoToolsRef.current.add(toolCallId);
+          const { range, sheetName, color = "#FFFF00" } = parseHighlightCellsArgs(inv.args);
+
+          if (!range) {
+            addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
+            continue;
+          }
+          if (typeof Excel === "undefined") {
+            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
+            continue;
+          }
+
+          void Excel.run(async (context) => {
+            const sheet = sheetName
+              ? context.workbook.worksheets.getItem(sheetName)
+              : context.workbook.worksheets.getActiveWorksheet();
+            const r = sheet.getRange(range.includes("!") ? range.slice(range.indexOf("!") + 1) : range);
+            r.format.fill.color = color;
+            await context.sync();
+            addToolResult({ toolCallId, result: { success: true } });
+          }).catch((e: unknown) => {
+            addToolResult({
+              toolCallId,
+              result: { error: e instanceof Error ? e.message : String(e) },
+            });
+          });
+        }
       }
     }
   }, [messages, addToolResult]);
 
+  // ── onToolResult para tools de confirmación (format, table, sort, filter, chart)
+  // Se mantienen en ChatMessageList via props; aquí solo necesitamos las funciones.
+  // Los parsers convierten unknown → tipo concreto dentro de los callbacks de ChatMessageList.
+  // Exponemos wrappers tipados para que ChatMessageList reciba ExecuteFn (args: unknown).
+  const executeFormatTyped = useCallback(
+    (args: unknown) => executeFormat(parseFormatRangeArgs(args)),
+    [executeFormat]
+  );
+  const executeCreateTableTyped = useCallback(
+    (args: unknown) => executeCreateTable(parseCreateTableArgs(args)),
+    [executeCreateTable]
+  );
+  const executeSortRangeTyped = useCallback(
+    (args: unknown) => executeSortRange(parseSortRangeArgs(args)),
+    [executeSortRange]
+  );
+  const executeFilterRangeTyped = useCallback(
+    (args: unknown) => executeFilterRange(parseFilterRangeArgs(args)),
+    [executeFilterRange]
+  );
+  const executeCreateChartTyped = useCallback(
+    (args: unknown) => executeCreateChart(parseCreateChartArgs(args)),
+    [executeCreateChart]
+  );
+
   /**
-   * Wrapper del submit del formulario:
-   * 1. Llama a getContextForMessage() para leer Excel en vivo.
-   * 2. Guarda el resultado en pendingContextRef antes de que prepareRequestBody lo lea.
-   * 3. Llama a handleSubmit para disparar la request al backend.
+   * Wrapper del submit: lee Excel en vivo justo antes de enviar.
    */
   const onFormSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
@@ -257,6 +374,16 @@ export default function ChatPage({
       handleSubmit(e);
     },
     [getContextForMessage, handleSubmit]
+  );
+
+  /**
+   * Envía una sugerencia de followup como nuevo mensaje de usuario.
+   */
+  const onSuggestedFollowup = useCallback(
+    (suggestion: string) => {
+      void append({ role: "user", content: suggestion });
+    },
+    [append]
   );
 
   return (
@@ -292,9 +419,15 @@ export default function ChatPage({
           isLoading={isLoading}
           emptyMessage="Escribe un mensaje. Se enviará el rango seleccionado en Excel como contexto."
           executeWrite={executeWrite}
+          executeFormat={executeFormatTyped}
+          executeCreateTable={executeCreateTableTyped}
+          executeSortRange={executeSortRangeTyped}
+          executeFilterRange={executeFilterRangeTyped}
+          executeCreateChart={executeCreateChartTyped}
           onToolResult={onToolResult}
           executingToolCallId={executingToolCallId}
           setExecutingToolCallId={setExecutingToolCallId}
+          onSuggestedFollowup={onSuggestedFollowup}
         />
         <AttachmentList
           files={attachmentState.files.map((f) => ({ id: f.id, filename: f.filename }))}
