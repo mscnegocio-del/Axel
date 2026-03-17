@@ -49,10 +49,47 @@ export function getChatApiUrl(): string {
 export type ToolCallForBody = { id: string; name: string; arguments: unknown };
 export type ToolResultForBody = { toolCallId: string; toolName: string; result: unknown };
 
+/** Máximo de filas a incluir en el bloque de contexto Excel inyectado en el mensaje. */
+const MAX_CONTEXT_ROWS = 100;
+
+/**
+ * Formatea los datos de Excel como un bloque de texto TSV e inyecta al inicio del mensaje.
+ * Garantiza que el modelo vea los datos incluso si el backend no reenvía excelContext.values
+ * al contexto del modelo.
+ */
+function buildMessageWithExcelContext(
+  message: string,
+  ctx: ExcelContext | null | undefined
+): string {
+  if (!ctx?.values || ctx.values.length === 0 || !ctx.sheetName) return message;
+
+  const rows = (ctx.values as unknown[][]).slice(0, MAX_CONTEXT_ROWS);
+  const tsv = rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          const s = String(cell ?? "");
+          return s.includes("\t") ? `"${s}"` : s;
+        })
+        .join("\t")
+    )
+    .join("\n");
+
+  const extra =
+    ctx.values.length > MAX_CONTEXT_ROWS
+      ? `\n[… ${ctx.values.length - MAX_CONTEXT_ROWS} filas más]`
+      : "";
+
+  const range = ctx.address ?? ctx.range ?? "";
+  const header = `[Excel — Hoja: ${ctx.sheetName}${range ? `, Rango: ${range}` : ""}]`;
+
+  return `${header}\n${tsv}${extra}\n\n${message}`;
+}
+
 /**
  * Prepara el body del POST /api/chat: message + excelContext + attachment.
- * Opcionalmente toolCalls y toolResults cuando se reenvía tras aprobar/cancelar una tool
- * (reload); el backend los usa para reconstruir el turno del asistente.
+ * Inyecta los datos de Excel en el campo `message` como bloque TSV para que el modelo
+ * pueda responder preguntas sobre la hoja aunque el backend no procese excelContext.values.
  */
 export function prepareChatBody(options: {
   message: string;
@@ -62,7 +99,7 @@ export function prepareChatBody(options: {
   toolResults?: ToolResultForBody[];
 }): Record<string, unknown> {
   const body: Record<string, unknown> = {
-    message: options.message,
+    message: buildMessageWithExcelContext(options.message, options.excelContext),
   };
   if (options.excelContext && Object.keys(options.excelContext).length > 0) {
     body.excelContext = options.excelContext;
