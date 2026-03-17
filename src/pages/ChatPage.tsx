@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useChat, type Message } from "ai/react";
 import type { JSONValue } from "ai";
 import {
@@ -6,7 +6,6 @@ import {
   getChatApiUrl,
   prepareChatBody,
   getToolCallsAndResultsFromMessage,
-  type ExcelContext,
   type AttachmentPayload,
 } from "@/lib/assistant";
 import { TokenUsageDisplay } from "@/components/billing/TokenUsageDisplay";
@@ -45,7 +44,17 @@ export default function ChatPage({
   onLimitExceeded,
   tokenUsageRefetch,
 }: ChatPageProps) {
-  const { excelContext } = useExcelContext();
+  const { excelContext, getContextForMessage } = useExcelContext();
+
+  // Ref con el contexto que se incluirá en el próximo request.
+  // Se actualiza por dos vías:
+  //   1. useEffect a continuación — cada vez que los listeners del hook actualizan el estado.
+  //   2. onFormSubmit — justo antes de cada envío manual, lee Excel en vivo.
+  const pendingContextRef = useRef(excelContext);
+
+  useEffect(() => {
+    pendingContextRef.current = excelContext;
+  }, [excelContext]);
   const attachmentState = useFileAttachment(tier);
   const executeWrite = useExcelWrite();
   const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
@@ -64,14 +73,16 @@ export default function ChatPage({
     fetch: chatFetch,
     maxSteps: 5,
     body: {
-      excelContext,
       attachment: attachmentState.getAttachmentForRequest(),
     },
     experimental_prepareRequestBody: ({ messages: msgs, requestBody }) => {
       const extra = (requestBody ?? {}) as {
-        excelContext?: ExcelContext;
         attachment?: AttachmentPayload | null;
       };
+      // pendingContextRef.current siempre tiene el contexto más reciente:
+      // actualizado por listeners (onActivated/onChanged) y por onFormSubmit justo antes del envío.
+      const ctx = pendingContextRef.current;
+
       const last = msgs[msgs.length - 1];
       const hasAssistantToolResults =
         last?.role === "assistant" &&
@@ -96,7 +107,7 @@ export default function ChatPage({
 
       return prepareChatBody({
         message,
-        excelContext: extra.excelContext ?? {},
+        excelContext: ctx,
         attachment: extra.attachment ?? undefined,
         toolCalls,
         toolResults,
@@ -160,6 +171,25 @@ export default function ChatPage({
     [addToolResult]
   );
 
+  /**
+   * Wrapper del submit del formulario:
+   * 1. Llama a getContextForMessage() para leer Excel en vivo.
+   * 2. Guarda el resultado en pendingContextRef antes de que prepareRequestBody lo lea.
+   * 3. Llama a handleSubmit para disparar la request al backend.
+   */
+  const onFormSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      try {
+        pendingContextRef.current = await getContextForMessage();
+      } catch {
+        // Si la lectura falla, pendingContextRef.current conserva el último contexto conocido.
+      }
+      handleSubmit(e);
+    },
+    [getContextForMessage, handleSubmit]
+  );
+
   return (
     <div className="flex min-h-screen flex-col p-4">
       <header className="flex items-center justify-between border-b border-border pb-3">
@@ -208,7 +238,7 @@ export default function ChatPage({
         {rateLimitMessage && (
           <p className="text-muted-foreground text-sm">{rateLimitMessage}</p>
         )}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+        <form onSubmit={(e) => { void onFormSubmit(e); }} className="flex flex-col gap-2">
           <div className="flex gap-2">
             <input
               type="file"

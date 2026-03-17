@@ -2,9 +2,23 @@ import { getAuthHeaders } from "@/lib/api";
 import { getBackendUrl } from "@/lib/api";
 
 export type ExcelContext = {
-  range?: string;
+  /** Nombre de la hoja activa */
   sheetName?: string;
+  /** Dirección del rango seleccionado por el usuario (legacy: alias de selectedRange) */
+  range?: string;
+  /** Valores del rango usado — toda la hoja (legacy: alias de values) */
   data?: string | unknown[][];
+  // --- Fase 1: contexto reactivo ---
+  /** Dirección del rango usado completo de la hoja (usedRange.address) */
+  address?: string;
+  /** Valores del rango usado completo de la hoja */
+  values?: unknown[][];
+  /** Número de filas del rango usado */
+  rowCount?: number;
+  /** Número de columnas del rango usado */
+  columnCount?: number;
+  /** Dirección del rango seleccionado por el usuario */
+  selectedRange?: string;
 };
 
 export type AttachmentPayload = {
