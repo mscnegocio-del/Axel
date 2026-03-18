@@ -9,6 +9,14 @@ import {
   SortRangeCard,
   FilterRangeCard,
   CreateChartCard,
+  CreatePivotTableCard,
+  EditPivotTableCard,
+  ConditionalFormatCard,
+  DataValidationCard,
+  EditChartCard,
+  SaveSkillCard,
+  RunSkillCard,
+  ListSkillsCard,
 } from "./ToolCallCards";
 import { SuggestedFollowups, extractFollowups } from "./SuggestedFollowups";
 import {
@@ -20,6 +28,11 @@ import {
   TOOL_SORT_RANGE,
   TOOL_FILTER_RANGE,
   TOOL_CREATE_CHART,
+  TOOL_CREATE_PIVOT_TABLE,
+  TOOL_EDIT_PIVOT_TABLE,
+  TOOL_CONDITIONAL_FORMAT,
+  TOOL_DATA_VALIDATION,
+  TOOL_EDIT_CHART,
   TOOL_NAVIGATE_TO_CELL,
   TOOL_HIGHLIGHT_CELLS,
   parseReadRangeArgs,
@@ -31,6 +44,14 @@ import {
   parseCreateChartArgs,
   parseNavigateToCellArgs,
   parseHighlightCellsArgs,
+  parseCreatePivotTableArgs,
+  parseEditPivotTableArgs,
+  parseConditionalFormatArgs,
+  parseDataValidationArgs,
+  parseEditChartArgs,
+  parseSaveSkillArgs,
+  parseRunSkillArgs,
+  parseListSkillsArgs,
 } from "@/lib/toolCalls";
 import type { ToolResult } from "@/hooks/useExcelTools";
 
@@ -71,6 +92,11 @@ type ChatMessageListProps = {
   executeSortRange?: ExecuteFn;
   executeFilterRange?: ExecuteFn;
   executeCreateChart?: ExecuteFn;
+  executeCreatePivotTable?: ExecuteFn;
+  executeEditPivotTable?: ExecuteFn;
+  executeConditionalFormat?: ExecuteFn;
+  executeDataValidation?: ExecuteFn;
+  executeEditChart?: ExecuteFn;
   /** Llamado al resolver cualquier tool (aprobar/cancelar) */
   onToolResult?: (messageId: string, toolCallId: string, result: unknown) => void;
   /** Tool call id ejecutándose actualmente */
@@ -96,6 +122,11 @@ export function ChatMessageList({
   executeSortRange,
   executeFilterRange,
   executeCreateChart,
+  executeCreatePivotTable,
+  executeEditPivotTable,
+  executeConditionalFormat,
+  executeDataValidation,
+  executeEditChart,
   onToolResult,
   executingToolCallId = null,
   setExecutingToolCallId,
@@ -378,6 +409,219 @@ export function ChatMessageList({
                       onCancel={() => {
                         onToolResult?.(m.id, toolCallId, { cancelled: true });
                       }}
+                    />
+                  );
+                }
+
+                // ── Confirm: create_pivot_table ──────────────────────────────
+                if (toolName === TOOL_CREATE_PIVOT_TABLE) {
+                  const parsedArgs = parseCreatePivotTableArgs(args);
+                  return (
+                    <CreatePivotTableCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!executeCreatePivotTable || !onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          const result = await executeCreatePivotTable(parsedArgs);
+                          onToolResult(m.id, toolCallId, result);
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Confirm: edit_pivot_table ────────────────────────────────
+                if (toolName === TOOL_EDIT_PIVOT_TABLE) {
+                  const parsedArgs = parseEditPivotTableArgs(args);
+                  return (
+                    <EditPivotTableCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!executeEditPivotTable || !onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          const result = await executeEditPivotTable(parsedArgs);
+                          onToolResult(m.id, toolCallId, result);
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Confirm: conditional_format ──────────────────────────────
+                if (toolName === TOOL_CONDITIONAL_FORMAT) {
+                  const parsedArgs = parseConditionalFormatArgs(args);
+                  return (
+                    <ConditionalFormatCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!executeConditionalFormat || !onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          const result = await executeConditionalFormat(parsedArgs);
+                          onToolResult(m.id, toolCallId, result);
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Confirm: data_validation ─────────────────────────────────
+                if (toolName === TOOL_DATA_VALIDATION) {
+                  const parsedArgs = parseDataValidationArgs(args);
+                  return (
+                    <DataValidationCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!executeDataValidation || !onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          const result = await executeDataValidation(parsedArgs);
+                          onToolResult(m.id, toolCallId, result);
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Confirm: edit_chart ──────────────────────────────────────
+                if (toolName === TOOL_EDIT_CHART) {
+                  const parsedArgs = parseEditChartArgs(args);
+                  return (
+                    <EditChartCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!executeEditChart || !onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          const result = await executeEditChart(parsedArgs);
+                          onToolResult(m.id, toolCallId, result);
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Skills: save_skill ───────────────────────────────────────
+                if (toolName === "save_skill") {
+                  const parsedArgs = parseSaveSkillArgs(args);
+                  return (
+                    <SaveSkillCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          onToolResult(m.id, toolCallId, { saved: true });
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Skills: run_skill ────────────────────────────────────────
+                if (toolName === "run_skill") {
+                  const parsedArgs = parseRunSkillArgs(args);
+                  return (
+                    <RunSkillCard
+                      key={key}
+                      toolCallId={toolCallId}
+                      args={parsedArgs}
+                      state={state}
+                      result={invResult}
+                      isExecuting={executingToolCallId === toolCallId}
+                      isResolved={isResolved}
+                      onApprove={async () => {
+                        if (!onToolResult) return;
+                        setExecutingToolCallId?.(toolCallId);
+                        try {
+                          onToolResult(m.id, toolCallId, { confirmed: true });
+                        } finally {
+                          setExecutingToolCallId?.(null);
+                        }
+                      }}
+                      onCancel={() => {
+                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                      }}
+                    />
+                  );
+                }
+
+                // ── Skills: list_skills (auto-execute informativa) ───────────
+                if (toolName === "list_skills") {
+                  parseListSkillsArgs(args); // actualmente sin uso, pero mantiene simetría
+                  return (
+                    <ListSkillsCard
+                      key={key}
+                      state={state}
+                      result={invResult}
                     />
                   );
                 }

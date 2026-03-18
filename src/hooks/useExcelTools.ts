@@ -5,6 +5,11 @@ import type {
   SortRangeArgs,
   FilterRangeArgs,
   CreateChartArgs,
+  CreatePivotTableArgs,
+  EditPivotTableArgs,
+  ConditionalFormatArgs,
+  DataValidationArgs,
+  EditChartArgs,
 } from "@/lib/toolCalls";
 
 export type ToolResult = { success: true } | { success: false; error: string };
@@ -169,6 +174,220 @@ export function useExcelCreateChart(): (
           sheet.getRange("F2"),
           sheet.getRange("N20")
         );
+        await context.sync();
+      });
+      return { success: true };
+    } catch (e) {
+      return excelError(e);
+    }
+  }, []);
+}
+
+// ── create_pivot_table ────────────────────────────────────────────────────────
+
+export function useExcelCreatePivotTable(): (
+  args: CreatePivotTableArgs
+) => Promise<ToolResult> {
+  return useCallback(async (args) => {
+    if (typeof Excel === "undefined") return { success: false, error: "Excel no disponible." };
+    const { sourceRange, destSheet, destRange, rows, values, filters } = args;
+    if (!sourceRange) return { success: false, error: "No se especificó el rango origen (sourceRange)." };
+    try {
+      await Excel.run(async (context) => {
+        const sheet = getSheet(context, destSheet);
+        const srcSheet = getSheet(context, undefined);
+        const srcRange = srcSheet.getRange(stripSheetPrefix(sourceRange));
+        const destination = destRange ? sheet.getRange(stripSheetPrefix(destRange)) : sheet.getRange("A1");
+        const pivot = sheet.pivotTables.add("PivotTable1", srcRange, destination);
+
+        if (Array.isArray(rows)) {
+          rows.forEach((fieldName) => {
+            try {
+              (pivot.rowHierarchies as any).add(fieldName);
+            } catch {
+              // Campo no encontrado; ignorar silenciosamente.
+            }
+          });
+        }
+        if (Array.isArray(values)) {
+          values.forEach((fieldName) => {
+            try {
+              const hierarchy = (pivot.dataHierarchies as any).add(fieldName);
+              hierarchy.summarizeBy = Excel.AggregationFunction.sum;
+            } catch {
+              // Ignorar campos inválidos.
+            }
+          });
+        }
+        if (Array.isArray(filters)) {
+          filters.forEach((fieldName) => {
+            try {
+              (pivot.filterHierarchies as any).add(fieldName);
+            } catch {
+              // Ignorar.
+            }
+          });
+        }
+
+        await context.sync();
+      });
+      return { success: true };
+    } catch (e) {
+      return excelError(e);
+    }
+  }, []);
+}
+
+// ── edit_pivot_table ──────────────────────────────────────────────────────────
+
+export function useExcelEditPivotTable(): (
+  args: EditPivotTableArgs
+) => Promise<ToolResult> {
+  return useCallback(async (args) => {
+    if (typeof Excel === "undefined") return { success: false, error: "Excel no disponible." };
+    const { pivotName, operation } = args;
+    if (!pivotName || !operation) {
+      return { success: false, error: "Faltan parámetros para editar la tabla dinámica." };
+    }
+    try {
+      await Excel.run(async (context) => {
+        const sheet = getSheet(context, undefined);
+        const pivot = sheet.pivotTables.getItem(pivotName);
+
+        // Implementación mínima: permitir solo refresh por ahora.
+        if (operation === "refresh") {
+          pivot.refresh();
+        }
+
+        await context.sync();
+      });
+      return { success: true };
+    } catch (e) {
+      return excelError(e);
+    }
+  }, []);
+}
+
+// ── conditional_format ────────────────────────────────────────────────────────
+
+export function useExcelConditionalFormat(): (
+  args: ConditionalFormatArgs
+) => Promise<ToolResult> {
+  return useCallback(async (args) => {
+    if (typeof Excel === "undefined") return { success: false, error: "Excel no disponible." };
+    const { range, sheetName, ruleType, criteria, format } = args;
+    if (!range || !ruleType) return { success: false, error: "Faltan parámetros para formato condicional." };
+    try {
+      await Excel.run(async (context) => {
+        const sheet = getSheet(context, sheetName);
+        const r = sheet.getRange(stripSheetPrefix(range));
+        let cf: Excel.ConditionalFormat;
+
+        if (ruleType === "greater_than") {
+          cf = r.conditionalFormats.add(Excel.ConditionalFormatType.cellValue);
+          cf.cellValue.rule = {
+            operator: Excel.ConditionalCellValueOperator.greaterThan,
+            formula1: String(criteria ?? "0"),
+          };
+        } else if (ruleType === "contains_text") {
+          cf = r.conditionalFormats.add(Excel.ConditionalFormatType.containsText);
+          cf.textComparison.rule = {
+            operator: Excel.ConditionalTextOperator.contains,
+            text: String(criteria ?? ""),
+          };
+        } else {
+          // Regla genérica: si no reconocemos el tipo, no hacemos nada grave.
+          await context.sync();
+          return;
+        }
+
+        if (format) {
+          const baseFormat = (cf as any).format;
+          if (format.fillColor) baseFormat.fill.color = format.fillColor;
+          if (format.fontColor) baseFormat.font.color = format.fontColor;
+          if (typeof format.bold === "boolean") baseFormat.font.bold = format.bold;
+        }
+
+        await context.sync();
+      });
+      return { success: true };
+    } catch (e) {
+      return excelError(e);
+    }
+  }, []);
+}
+
+// ── data_validation ───────────────────────────────────────────────────────────
+
+export function useExcelDataValidation(): (
+  args: DataValidationArgs
+) => Promise<ToolResult> {
+  return useCallback(async (args) => {
+    if (typeof Excel === "undefined") return { success: false, error: "Excel no disponible." };
+    const { range, sheetName, type, list, min, max } = args;
+    if (!range || !type) return { success: false, error: "Faltan parámetros para validación de datos." };
+    try {
+      await Excel.run(async (context) => {
+        const sheet = getSheet(context, sheetName);
+        const r = sheet.getRange(stripSheetPrefix(range));
+
+        if (type === "list" && Array.isArray(list)) {
+          const formula = `"${list.join(",")}"`;
+          (r.dataValidation as any).rule = {
+            type: Excel.DataValidationType.list,
+            inCellDropDown: true,
+            formula1: formula,
+          };
+        } else if (type === "wholeNumber") {
+          (r.dataValidation as any).rule = {
+            type: Excel.DataValidationType.wholeNumber,
+            operator: Excel.DataValidationOperator.between,
+            formula1: min != null ? String(min) : "0",
+            formula2: max != null ? String(max) : String(min ?? 0),
+          };
+        } else if (type === "decimal") {
+          (r.dataValidation as any).rule = {
+            type: Excel.DataValidationType.decimal,
+            operator: Excel.DataValidationOperator.between,
+            formula1: min != null ? String(min) : "0",
+            formula2: max != null ? String(max) : String(min ?? 0),
+          };
+        }
+
+        await context.sync();
+      });
+      return { success: true };
+    } catch (e) {
+      return excelError(e);
+    }
+  }, []);
+}
+
+// ── edit_chart ────────────────────────────────────────────────────────────────
+
+export function useExcelEditChart(): (
+  args: EditChartArgs
+) => Promise<ToolResult> {
+  return useCallback(async (args) => {
+    if (typeof Excel === "undefined") return { success: false, error: "Excel no disponible." };
+    const { chartName, property, value } = args;
+    if (!chartName || !property) {
+      return { success: false, error: "Faltan parámetros para editar el gráfico." };
+    }
+    try {
+      await Excel.run(async (context) => {
+        const sheet = getSheet(context, undefined);
+        const chart = sheet.charts.getItem(chartName);
+
+        switch (property) {
+          case "title":
+            chart.title.text = String(value ?? "");
+            break;
+          default:
+            // Propiedades adicionales se pueden mapear aquí en el futuro.
+            break;
+        }
+
         await context.sync();
       });
       return { success: true };

@@ -19,6 +19,11 @@ import {
   useExcelSortRange,
   useExcelFilterRange,
   useExcelCreateChart,
+  useExcelCreatePivotTable,
+  useExcelEditPivotTable,
+  useExcelConditionalFormat,
+  useExcelDataValidation,
+  useExcelEditChart,
 } from "@/hooks/useExcelTools";
 import { supabase } from "@/lib/supabase";
 import { useFileAttachment, type Tier } from "@/hooks/useFileAttachment";
@@ -35,6 +40,11 @@ import {
   parseSortRangeArgs,
   parseFilterRangeArgs,
   parseCreateChartArgs,
+  parseCreatePivotTableArgs,
+  parseEditPivotTableArgs,
+  parseConditionalFormatArgs,
+  parseDataValidationArgs,
+  parseEditChartArgs,
 } from "@/lib/toolCalls";
 
 type ChatPageProps = {
@@ -82,6 +92,11 @@ export default function ChatPage({
   const executeSortRange = useExcelSortRange();
   const executeFilterRange = useExcelFilterRange();
   const executeCreateChart = useExcelCreateChart();
+  const executeCreatePivotTable = useExcelCreatePivotTable();
+  const executeEditPivotTable = useExcelEditPivotTable();
+  const executeConditionalFormat = useExcelConditionalFormat();
+  const executeDataValidation = useExcelDataValidation();
+  const executeEditChart = useExcelEditChart();
 
   const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
@@ -367,6 +382,26 @@ export default function ChatPage({
     (args: unknown) => executeCreateChart(parseCreateChartArgs(args)),
     [executeCreateChart]
   );
+  const executeCreatePivotTableTyped = useCallback(
+    (args: unknown) => executeCreatePivotTable(parseCreatePivotTableArgs(args)),
+    [executeCreatePivotTable]
+  );
+  const executeEditPivotTableTyped = useCallback(
+    (args: unknown) => executeEditPivotTable(parseEditPivotTableArgs(args)),
+    [executeEditPivotTable]
+  );
+  const executeConditionalFormatTyped = useCallback(
+    (args: unknown) => executeConditionalFormat(parseConditionalFormatArgs(args)),
+    [executeConditionalFormat]
+  );
+  const executeDataValidationTyped = useCallback(
+    (args: unknown) => executeDataValidation(parseDataValidationArgs(args)),
+    [executeDataValidation]
+  );
+  const executeEditChartTyped = useCallback(
+    (args: unknown) => executeEditChart(parseEditChartArgs(args)),
+    [executeEditChart]
+  );
 
   /**
    * Wrapper del submit: lee Excel en vivo justo antes de enviar.
@@ -432,6 +467,11 @@ export default function ChatPage({
           executeSortRange={executeSortRangeTyped}
           executeFilterRange={executeFilterRangeTyped}
           executeCreateChart={executeCreateChartTyped}
+          executeCreatePivotTable={executeCreatePivotTableTyped}
+          executeEditPivotTable={executeEditPivotTableTyped}
+          executeConditionalFormat={executeConditionalFormatTyped}
+          executeDataValidation={executeDataValidationTyped}
+          executeEditChart={executeEditChartTyped}
           onToolResult={onToolResult}
           executingToolCallId={executingToolCallId}
           setExecutingToolCallId={setExecutingToolCallId}

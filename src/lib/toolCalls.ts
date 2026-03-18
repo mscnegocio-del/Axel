@@ -11,6 +11,18 @@ export const TOOL_CREATE_CHART = "create_chart";
 export const TOOL_NAVIGATE_TO_CELL = "navigate_to_cell";
 export const TOOL_HIGHLIGHT_CELLS = "highlight_cells";
 
+// Fase 3 — tools avanzadas
+export const TOOL_CREATE_PIVOT_TABLE = "create_pivot_table";
+export const TOOL_EDIT_PIVOT_TABLE = "edit_pivot_table";
+export const TOOL_CONDITIONAL_FORMAT = "conditional_format";
+export const TOOL_DATA_VALIDATION = "data_validation";
+export const TOOL_EDIT_CHART = "edit_chart";
+
+// Fase 4 — skills
+export const TOOL_SAVE_SKILL = "save_skill";
+export const TOOL_RUN_SKILL = "run_skill";
+export const TOOL_LIST_SKILLS = "list_skills";
+
 /** Tools que se ejecutan automáticamente sin confirmación del usuario. */
 export const AUTO_EXECUTE_TOOLS = new Set([
   TOOL_READ_EXCEL_RANGE,
@@ -69,6 +81,62 @@ export type HighlightCellsArgs = {
   sheetName?: string;
   color?: string;
 };
+
+// Fase 3 — tipos avanzados
+export type CreatePivotTableArgs = {
+  sourceRange?: string;
+  destSheet?: string;
+  destRange?: string;
+  rows?: string[];
+  values?: string[];
+  filters?: string[];
+};
+
+export type EditPivotTableArgs = {
+  pivotName?: string;
+  operation?: string;
+  params?: Record<string, unknown>;
+};
+
+export type ConditionalFormatArgs = {
+  range?: string;
+  sheetName?: string;
+  ruleType?: string;
+  criteria?: string | number;
+  format?: {
+    fillColor?: string;
+    fontColor?: string;
+    bold?: boolean;
+  };
+};
+
+export type DataValidationArgs = {
+  range?: string;
+  sheetName?: string;
+  type?: string;
+  list?: string[];
+  min?: number;
+  max?: number;
+};
+
+export type EditChartArgs = {
+  chartName?: string;
+  property?: string;
+  value?: unknown;
+};
+
+// Fase 4 — skills
+export type SaveSkillArgs = {
+  skillName?: string;
+  description?: string;
+};
+
+export type RunSkillArgs = {
+  skillName?: string;
+  contextOverrides?: Record<string, unknown>;
+};
+
+export type ListSkillsArgs = Record<string, never>;
 
 // ── Parsers ───────────────────────────────────────────────────────────────────
 
@@ -163,4 +231,95 @@ export function parseHighlightCellsArgs(args: unknown): HighlightCellsArgs {
     sheetName: typeof o.sheetName === "string" ? o.sheetName : undefined,
     color: typeof o.color === "string" ? o.color : "#FFFF00",
   };
+}
+
+export function parseCreatePivotTableArgs(args: unknown): CreatePivotTableArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  return {
+    sourceRange: typeof o.sourceRange === "string" ? o.sourceRange : undefined,
+    destSheet: typeof o.destSheet === "string" ? o.destSheet : undefined,
+    destRange: typeof o.destRange === "string" ? o.destRange : undefined,
+    rows: Array.isArray(o.rows) ? (o.rows as string[]) : undefined,
+    values: Array.isArray(o.values) ? (o.values as string[]) : undefined,
+    filters: Array.isArray(o.filters) ? (o.filters as string[]) : undefined,
+  };
+}
+
+export function parseEditPivotTableArgs(args: unknown): EditPivotTableArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  return {
+    pivotName: typeof o.pivotName === "string" ? o.pivotName : undefined,
+    operation: typeof o.operation === "string" ? o.operation : undefined,
+    params: o.params && typeof o.params === "object" ? (o.params as Record<string, unknown>) : undefined,
+  };
+}
+
+export function parseConditionalFormatArgs(args: unknown): ConditionalFormatArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  const format = o.format && typeof o.format === "object" ? (o.format as Record<string, unknown>) : undefined;
+  return {
+    range: typeof o.range === "string" ? o.range : undefined,
+    sheetName: typeof o.sheetName === "string" ? o.sheetName : undefined,
+    ruleType: typeof o.ruleType === "string" ? o.ruleType : undefined,
+    criteria:
+      typeof o.criteria === "string" || typeof o.criteria === "number" ? (o.criteria as string | number) : undefined,
+    format: format
+      ? {
+          fillColor: typeof format.fillColor === "string" ? (format.fillColor as string) : undefined,
+          fontColor: typeof format.fontColor === "string" ? (format.fontColor as string) : undefined,
+          bold: typeof format.bold === "boolean" ? (format.bold as boolean) : undefined,
+        }
+      : undefined,
+  };
+}
+
+export function parseDataValidationArgs(args: unknown): DataValidationArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  return {
+    range: typeof o.range === "string" ? o.range : undefined,
+    sheetName: typeof o.sheetName === "string" ? o.sheetName : undefined,
+    type: typeof o.type === "string" ? o.type : undefined,
+    list: Array.isArray(o.list) ? (o.list as string[]) : undefined,
+    min: typeof o.min === "number" ? o.min : undefined,
+    max: typeof o.max === "number" ? o.max : undefined,
+  };
+}
+
+export function parseEditChartArgs(args: unknown): EditChartArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  return {
+    chartName: typeof o.chartName === "string" ? o.chartName : undefined,
+    property: typeof o.property === "string" ? o.property : undefined,
+    value: o.value,
+  };
+}
+
+export function parseSaveSkillArgs(args: unknown): SaveSkillArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  return {
+    skillName: typeof o.skillName === "string" ? o.skillName : undefined,
+    description: typeof o.description === "string" ? o.description : undefined,
+  };
+}
+
+export function parseRunSkillArgs(args: unknown): RunSkillArgs {
+  if (!args || typeof args !== "object") return {};
+  const o = args as Record<string, unknown>;
+  return {
+    skillName: typeof o.skillName === "string" ? o.skillName : undefined,
+    contextOverrides:
+      o.contextOverrides && typeof o.contextOverrides === "object"
+        ? (o.contextOverrides as Record<string, unknown>)
+        : undefined,
+  };
+}
+
+export function parseListSkillsArgs(_args: unknown): ListSkillsArgs {
+  return {};
 }

@@ -6,6 +6,13 @@ import type {
   SortRangeArgs,
   FilterRangeArgs,
   CreateChartArgs,
+  CreatePivotTableArgs,
+  EditPivotTableArgs,
+  ConditionalFormatArgs,
+  DataValidationArgs,
+  EditChartArgs,
+  SaveSkillArgs,
+  RunSkillArgs,
 } from "@/lib/toolCalls";
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -547,5 +554,416 @@ export function CreateChartCard({
         )}
       </dl>
     </ActionCard>
+  );
+}
+
+// ── CreatePivotTableCard ──────────────────────────────────────────────────────
+
+type CreatePivotTableCardProps = {
+  toolCallId: string;
+  args: CreatePivotTableArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function CreatePivotTableCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: CreatePivotTableCardProps) {
+  const { sourceRange, destSheet, destRange, rows, values, filters } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Crear tabla dinámica desde ${sourceRange ?? "rango"}`}
+      successMessage="Tabla dinámica creada."
+      isResolved={isResolved}
+    >
+      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        <dt className="text-muted-foreground">Origen</dt>
+        <dd>{sourceRange ?? "—"}</dd>
+        <dt className="text-muted-foreground">Destino</dt>
+        <dd>
+          {destSheet ?? "hoja actual"}
+          {destRange ? ` · ${destRange}` : ""}
+        </dd>
+        {rows && rows.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">Filas</dt>
+            <dd>{rows.join(", ")}</dd>
+          </>
+        )}
+        {values && values.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">Valores</dt>
+            <dd>{values.join(", ")}</dd>
+          </>
+        )}
+        {filters && filters.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">Filtros</dt>
+            <dd>{filters.join(", ")}</dd>
+          </>
+        )}
+      </dl>
+    </ActionCard>
+  );
+}
+
+// ── EditPivotTableCard ────────────────────────────────────────────────────────
+
+type EditPivotTableCardProps = {
+  toolCallId: string;
+  args: EditPivotTableArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function EditPivotTableCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: EditPivotTableCardProps) {
+  const { pivotName, operation } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Editar tabla dinámica ${pivotName ?? ""} (${operation ?? "operación"})`}
+      successMessage="Tabla dinámica actualizada."
+      isResolved={isResolved}
+    />
+  );
+}
+
+// ── ConditionalFormatCard ─────────────────────────────────────────────────────
+
+type ConditionalFormatCardProps = {
+  toolCallId: string;
+  args: ConditionalFormatArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function ConditionalFormatCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: ConditionalFormatCardProps) {
+  const { range, sheetName, ruleType, criteria, format } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Formato condicional en ${range ?? "rango"} (${sheetName ?? "hoja activa"})`}
+      successMessage="Formato condicional aplicado."
+      isResolved={isResolved}
+    >
+      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        <dt className="text-muted-foreground">Regla</dt>
+        <dd>{ruleType ?? "—"}</dd>
+        {criteria != null && (
+          <>
+            <dt className="text-muted-foreground">Criterio</dt>
+            <dd>{String(criteria)}</dd>
+          </>
+        )}
+        {format?.fillColor && (
+          <>
+            <dt className="text-muted-foreground">Relleno</dt>
+            <dd className="flex items-center gap-1">
+              <span
+                className="inline-block h-3 w-3 rounded-sm border border-border"
+                style={{ background: format.fillColor }}
+              />
+              {format.fillColor}
+            </dd>
+          </>
+        )}
+        {format?.fontColor && (
+          <>
+            <dt className="text-muted-foreground">Color texto</dt>
+            <dd className="flex items-center gap-1">
+              <span
+                className="inline-block h-3 w-3 rounded-sm border border-border"
+                style={{ background: format.fontColor }}
+              />
+              {format.fontColor}
+            </dd>
+          </>
+        )}
+        {typeof format?.bold === "boolean" && (
+          <>
+            <dt className="text-muted-foreground">Negrita</dt>
+            <dd>{format.bold ? "Sí" : "No"}</dd>
+          </>
+        )}
+      </dl>
+    </ActionCard>
+  );
+}
+
+// ── DataValidationCard ────────────────────────────────────────────────────────
+
+type DataValidationCardProps = {
+  toolCallId: string;
+  args: DataValidationArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function DataValidationCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: DataValidationCardProps) {
+  const { range, sheetName, type, list, min, max } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Validación de datos en ${range ?? "rango"} (${sheetName ?? "hoja activa"})`}
+      successMessage="Validación aplicada."
+      isResolved={isResolved}
+    >
+      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        <dt className="text-muted-foreground">Tipo</dt>
+        <dd>{type ?? "—"}</dd>
+        {Array.isArray(list) && list.length > 0 && (
+          <>
+            <dt className="text-muted-foreground">Lista</dt>
+            <dd>{list.join(", ")}</dd>
+          </>
+        )}
+        {(min != null || max != null) && (
+          <>
+            <dt className="text-muted-foreground">Rango</dt>
+            <dd>
+              {min != null ? min : "—"} a {max != null ? max : "—"}
+            </dd>
+          </>
+        )}
+      </dl>
+    </ActionCard>
+  );
+}
+
+// ── EditChartCard ─────────────────────────────────────────────────────────────
+
+type EditChartCardProps = {
+  toolCallId: string;
+  args: EditChartArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function EditChartCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: EditChartCardProps) {
+  const { chartName, property, value } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Editar gráfico ${chartName ?? ""} (${property ?? ""})`}
+      successMessage="Gráfico actualizado."
+      isResolved={isResolved}
+    >
+      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        <dt className="text-muted-foreground">Propiedad</dt>
+        <dd>{property ?? "—"}</dd>
+        {value != null && (
+          <>
+            <dt className="text-muted-foreground">Nuevo valor</dt>
+            <dd>{String(value)}</dd>
+          </>
+        )}
+      </dl>
+    </ActionCard>
+  );
+}
+
+// ── Skills cards (save_skill, run_skill, list_skills) ─────────────────────────
+
+type SaveSkillCardProps = {
+  toolCallId: string;
+  args: SaveSkillArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function SaveSkillCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: SaveSkillCardProps) {
+  const { skillName, description } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Guardar skill "${skillName ?? "sin nombre"}"`}
+      successMessage="Skill guardado."
+      isResolved={isResolved}
+    >
+      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        <dt className="text-muted-foreground">Nombre</dt>
+        <dd>{skillName ?? "—"}</dd>
+        {description && (
+          <>
+            <dt className="text-muted-foreground">Descripción</dt>
+            <dd>{description}</dd>
+          </>
+        )}
+      </dl>
+    </ActionCard>
+  );
+}
+
+type RunSkillCardProps = {
+  toolCallId: string;
+  args: RunSkillArgs;
+  state: ToolState;
+  result?: unknown;
+  onApprove: () => void;
+  onCancel: () => void;
+  isExecuting?: boolean;
+  isResolved?: boolean;
+};
+
+export function RunSkillCard({
+  toolCallId,
+  args,
+  state,
+  result,
+  onApprove,
+  onCancel,
+  isExecuting,
+  isResolved,
+}: RunSkillCardProps) {
+  const { skillName } = args;
+  return (
+    <ActionCard
+      toolCallId={toolCallId}
+      state={state}
+      result={result}
+      isExecuting={isExecuting}
+      onApprove={onApprove}
+      onCancel={onCancel}
+      label={`Ejecutar skill "${skillName ?? "sin nombre"}"`}
+      successMessage="Skill ejecutado."
+      isResolved={isResolved}
+    />
+  );
+}
+
+type ListSkillsCardProps = {
+  state: ToolState;
+  result?: unknown;
+};
+
+export function ListSkillsCard({ state, result }: ListSkillsCardProps) {
+  const skills =
+    state === "result" &&
+    result &&
+    typeof result === "object" &&
+    "skills" in result &&
+    Array.isArray((result as { skills?: unknown }).skills)
+      ? ((result as { skills: unknown[] }).skills as string[])
+      : [];
+
+  const content =
+    skills.length === 0
+      ? "No hay skills guardados todavía."
+      : `Skills disponibles: ${skills.join(", ")}`;
+
+  return (
+    <AutoExecuteCard
+      state={state}
+      pendingLabel="Listando skills…"
+      doneLabel={content}
+      result={result}
+    />
   );
 }
