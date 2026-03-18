@@ -335,6 +335,8 @@ type CreateTableCardProps = {
   onCancel: () => void;
   isExecuting?: boolean;
   isResolved?: boolean;
+  /** Opcional: acción para pedir a Axel que rellene esta tabla con datos de ejemplo. */
+  onFillExample?: () => void;
 };
 
 export function CreateTableCard({
@@ -346,6 +348,7 @@ export function CreateTableCard({
   onCancel,
   isExecuting,
   isResolved,
+  onFillExample,
 }: CreateTableCardProps) {
   const { range, sheetName, hasHeaders, tableName } = args;
   return (
@@ -372,6 +375,20 @@ export function CreateTableCard({
           </>
         )}
       </dl>
+      {state === "result" &&
+      result != null &&
+      typeof result === "object" &&
+      "success" in result &&
+      (result as { success?: boolean }).success === true &&
+      onFillExample ? (
+        <button
+          type="button"
+          onClick={onFillExample}
+          className="mt-2 rounded border border-primary/40 bg-primary/5 px-2 py-1 text-xs text-primary hover:bg-primary/10"
+        >
+          Rellenar con datos de ejemplo
+        </button>
+      ) : null}
     </ActionCard>
   );
 }

@@ -309,6 +309,14 @@ export function ChatMessageList({
                       result={invResult}
                       isExecuting={executingToolCallId === toolCallId}
                       isResolved={isResolved}
+                      onFillExample={
+                        onSuggestedFollowup && state === "result"
+                          ? () =>
+                              onSuggestedFollowup(
+                                "Rellena la tabla actual con 50 filas de datos de ejemplo de ventas de productos digitales."
+                              )
+                          : undefined
+                      }
                       onApprove={async () => {
                         if (!executeCreateTable || !onToolResult) return;
                         setExecutingToolCallId?.(toolCallId);
