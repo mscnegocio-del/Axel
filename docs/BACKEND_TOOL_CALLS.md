@@ -23,12 +23,12 @@ El `useEffect` en `ChatPage.tsx` detecta `state: "call"` y ejecuta Office.js aut
 
 | Tool | Args | Resultado si aprueba | Resultado si cancela |
 |---|---|---|---|
-| `write_excel_range` | `{ range, sheetName, data: unknown[][] }` | `{ success: true }` o `{ success: false, error }` | `{ cancelled: true }` |
-| `format_range` | `{ range, sheetName?, fillColor?, bold?, fontColor?, numberFormat? }` | `{ success: true }` | `{ cancelled: true }` |
-| `create_table` | `{ range, sheetName?, hasHeaders?, tableName? }` | `{ success: true }` | `{ cancelled: true }` |
-| `sort_range` | `{ range, sheetName?, columnIndex?, ascending? }` | `{ success: true }` | `{ cancelled: true }` |
-| `filter_range` | `{ range, sheetName?, columnIndex?, criterion? }` | `{ success: true }` | `{ cancelled: true }` |
-| `create_chart` | `{ range, sheetName?, chartType?, title? }` | `{ success: true }` | `{ cancelled: true }` |
+| `write_excel_range` | `{ range, sheetName, data: unknown[][] }` | `{ success: true }` o `{ success: false, error }` | `{ status: "cancelled", reason: "user_cancelled" }` |
+| `format_range` | `{ range, sheetName?, fillColor?, bold?, fontColor?, numberFormat? }` | `{ success: true }` | `{ status: "cancelled", reason: "user_cancelled" }` |
+| `create_table` | `{ range, sheetName?, hasHeaders?, tableName? }` | `{ success: true }` | `{ status: "cancelled", reason: "user_cancelled" }` |
+| `sort_range` | `{ range, sheetName?, columnIndex?, ascending? }` | `{ success: true }` | `{ status: "cancelled", reason: "user_cancelled" }` |
+| `filter_range` | `{ range, sheetName?, columnIndex?, criterion? }` | `{ success: true }` | `{ status: "cancelled", reason: "user_cancelled" }` |
+| `create_chart` | `{ range, sheetName?, chartType?, title? }` | `{ success: true }` | `{ status: "cancelled", reason: "user_cancelled" }` |
 
 ---
 

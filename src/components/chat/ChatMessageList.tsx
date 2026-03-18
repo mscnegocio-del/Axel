@@ -262,7 +262,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -291,7 +294,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -328,7 +334,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -357,7 +366,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -386,7 +398,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -415,7 +430,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -444,7 +462,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -473,7 +494,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -502,7 +526,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -531,7 +558,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -560,7 +590,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -588,7 +621,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
@@ -616,7 +652,10 @@ export function ChatMessageList({
                         }
                       }}
                       onCancel={() => {
-                        onToolResult?.(m.id, toolCallId, { cancelled: true });
+                        onToolResult?.(m.id, toolCallId, {
+                          status: "cancelled",
+                          reason: "user_cancelled",
+                        });
                       }}
                     />
                   );
