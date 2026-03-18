@@ -320,6 +320,6 @@ export function parseRunSkillArgs(args: unknown): RunSkillArgs {
   };
 }
 
-export function parseListSkillsArgs(_args: unknown): ListSkillsArgs {
+export function parseListSkillsArgs(_args?: unknown): ListSkillsArgs {
   return {};
 }

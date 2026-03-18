@@ -203,6 +203,7 @@ export function useExcelCreatePivotTable(): (
         if (Array.isArray(rows)) {
           rows.forEach((fieldName) => {
             try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (pivot.rowHierarchies as any).add(fieldName);
             } catch {
               // Campo no encontrado; ignorar silenciosamente.
@@ -212,6 +213,7 @@ export function useExcelCreatePivotTable(): (
         if (Array.isArray(values)) {
           values.forEach((fieldName) => {
             try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const hierarchy = (pivot.dataHierarchies as any).add(fieldName);
               hierarchy.summarizeBy = Excel.AggregationFunction.sum;
             } catch {
@@ -222,6 +224,7 @@ export function useExcelCreatePivotTable(): (
         if (Array.isArray(filters)) {
           filters.forEach((fieldName) => {
             try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               (pivot.filterHierarchies as any).add(fieldName);
             } catch {
               // Ignorar.
@@ -302,6 +305,7 @@ export function useExcelConditionalFormat(): (
         }
 
         if (format) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const baseFormat = (cf as any).format;
           if (format.fillColor) baseFormat.fill.color = format.fillColor;
           if (format.fontColor) baseFormat.font.color = format.fontColor;
@@ -333,12 +337,14 @@ export function useExcelDataValidation(): (
 
         if (type === "list" && Array.isArray(list)) {
           const formula = `"${list.join(",")}"`;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (r.dataValidation as any).rule = {
             type: Excel.DataValidationType.list,
             inCellDropDown: true,
             formula1: formula,
           };
         } else if (type === "wholeNumber") {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (r.dataValidation as any).rule = {
             type: Excel.DataValidationType.wholeNumber,
             operator: Excel.DataValidationOperator.between,
@@ -346,6 +352,7 @@ export function useExcelDataValidation(): (
             formula2: max != null ? String(max) : String(min ?? 0),
           };
         } else if (type === "decimal") {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (r.dataValidation as any).rule = {
             type: Excel.DataValidationType.decimal,
             operator: Excel.DataValidationOperator.between,

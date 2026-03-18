@@ -23,7 +23,7 @@ export function useExcelWrite(): (
           sheet = context.workbook.worksheets.add(sheetName);
         }
         // Obtener rango base y sus dimensiones actuales
-        let range = sheet.getRange(rangeAddress);
+        const range = sheet.getRange(rangeAddress);
         range.load(["rowCount", "columnCount"]);
         await context.sync();
 

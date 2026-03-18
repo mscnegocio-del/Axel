@@ -16,9 +16,11 @@ export default function LoginPage() {
     setIsOpeningDialog(true);
     const url = "https://axel.habla.cloud/auth-dialog.html";
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (Office.context.ui as any).displayDialogAsync(
       url,
       { height: 60, width: 40, displayInIframe: true },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (asyncResult: any) => {
         setIsOpeningDialog(false);
         if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
@@ -26,8 +28,10 @@ export default function LoginPage() {
           return;
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const dialog = asyncResult.value as any;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const onMessage = async (arg: any) => {
           try {
             const payload = JSON.parse(arg.message) as {
@@ -53,6 +57,7 @@ export default function LoginPage() {
           }
         };
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const onDialogError = (event: any) => {
           setError(
             `Error en la ventana de inicio de sesión (código ${event.error}).`

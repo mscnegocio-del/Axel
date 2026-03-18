@@ -12,40 +12,10 @@ import { TokenUsageDisplay } from "@/components/billing/TokenUsageDisplay";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import { AttachmentList } from "@/components/attachments/AttachmentList";
 import { useExcelContext } from "@/hooks/useExcelContext";
-import { useExcelWrite } from "@/hooks/useExcelWrite";
-import {
-  useExcelFormat,
-  useExcelCreateTable,
-  useExcelSortRange,
-  useExcelFilterRange,
-  useExcelCreateChart,
-  useExcelCreatePivotTable,
-  useExcelEditPivotTable,
-  useExcelConditionalFormat,
-  useExcelDataValidation,
-  useExcelEditChart,
-} from "@/hooks/useExcelTools";
-import { supabase } from "@/lib/supabase";
 import { useFileAttachment, type Tier } from "@/hooks/useFileAttachment";
-import {
-  TOOL_READ_EXCEL_RANGE,
-  TOOL_LIST_SHEETS,
-  TOOL_NAVIGATE_TO_CELL,
-  TOOL_HIGHLIGHT_CELLS,
-  parseReadRangeArgs,
-  parseNavigateToCellArgs,
-  parseHighlightCellsArgs,
-  parseFormatRangeArgs,
-  parseCreateTableArgs,
-  parseSortRangeArgs,
-  parseFilterRangeArgs,
-  parseCreateChartArgs,
-  parseCreatePivotTableArgs,
-  parseEditPivotTableArgs,
-  parseConditionalFormatArgs,
-  parseDataValidationArgs,
-  parseEditChartArgs,
-} from "@/lib/toolCalls";
+import { useExcelToolAutoExecution } from "@/hooks/useExcelToolAutoExecution";
+import { useToolExecutors } from "@/lib/toolExecutorsFactory";
+import { supabase } from "@/lib/supabase";
 
 type ChatPageProps = {
   tier: Tier;
@@ -77,26 +47,13 @@ export default function ChatPage({
 }: ChatPageProps) {
   const { excelContext, getContextForMessage } = useExcelContext();
 
-  // Ref con el contexto que se incluirá en el próximo request.
   const pendingContextRef = useRef(excelContext);
   useEffect(() => {
     pendingContextRef.current = excelContext;
   }, [excelContext]);
 
   const attachmentState = useFileAttachment(tier);
-
-  // ── Hooks de ejecución de tools ────────────────────────────────────────────
-  const executeWrite = useExcelWrite();
-  const executeFormat = useExcelFormat();
-  const executeCreateTable = useExcelCreateTable();
-  const executeSortRange = useExcelSortRange();
-  const executeFilterRange = useExcelFilterRange();
-  const executeCreateChart = useExcelCreateChart();
-  const executeCreatePivotTable = useExcelCreatePivotTable();
-  const executeEditPivotTable = useExcelEditPivotTable();
-  const executeConditionalFormat = useExcelConditionalFormat();
-  const executeDataValidation = useExcelDataValidation();
-  const executeEditChart = useExcelEditChart();
+  const toolExecutors = useToolExecutors();
 
   const [executingToolCallId, setExecutingToolCallId] = useState<string | null>(null);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
@@ -200,6 +157,8 @@ export default function ChatPage({
     },
   });
 
+  useExcelToolAutoExecution(messages, addToolResult);
+
   const onToolResult = useCallback(
     (_messageId: string, toolCallId: string, result: unknown) => {
       // Registrar el ID antes de llamar a addToolResult para que el guard de
@@ -210,202 +169,6 @@ export default function ChatPage({
     [addToolResult]
   );
 
-  // ── Auto-execute tools ─────────────────────────────────────────────────────
-  // IDs ya procesados para evitar doble ejecución por re-renders.
-  const executedAutoToolsRef = useRef(new Set<string>());
-
-  useEffect(() => {
-    for (const msg of messages) {
-      if (msg.role !== "assistant") continue;
-      const invocations = msg.toolInvocations;
-      if (!Array.isArray(invocations)) continue;
-
-      for (const inv of invocations) {
-        if (inv.state !== "call") continue;
-
-        const { toolCallId, toolName } = inv as { toolCallId: string; toolName: string; args?: unknown };
-        if (executedAutoToolsRef.current.has(toolCallId)) continue;
-
-        // ── read_excel_range ────────────────────────────────────────────────
-        if (toolName === TOOL_READ_EXCEL_RANGE) {
-          executedAutoToolsRef.current.add(toolCallId);
-          const { range } = parseReadRangeArgs(inv.args);
-
-          if (!range) {
-            addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
-            continue;
-          }
-          if (typeof Excel === "undefined") {
-            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
-            continue;
-          }
-
-          let sheetId: string | undefined;
-          let rangeAddr = range;
-          if (range.includes("!")) {
-            const idx = range.indexOf("!");
-            sheetId = range.slice(0, idx).replace(/'/g, "");
-            rangeAddr = range.slice(idx + 1);
-          }
-
-          void Excel.run(async (context) => {
-            const sheet = sheetId
-              ? context.workbook.worksheets.getItem(sheetId)
-              : context.workbook.worksheets.getActiveWorksheet();
-            const r = sheet.getRange(rangeAddr);
-            r.load(["address", "values", "rowCount", "columnCount"]);
-            await context.sync();
-            addToolResult({
-              toolCallId,
-              result: {
-                address: r.address,
-                values: r.values,
-                rowCount: r.rowCount,
-                columnCount: r.columnCount,
-              },
-            });
-          }).catch((e: unknown) => {
-            addToolResult({
-              toolCallId,
-              result: { error: e instanceof Error ? e.message : String(e) },
-            });
-          });
-        }
-
-        // ── list_sheets ─────────────────────────────────────────────────────
-        else if (toolName === TOOL_LIST_SHEETS) {
-          executedAutoToolsRef.current.add(toolCallId);
-          if (typeof Excel === "undefined") {
-            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
-            continue;
-          }
-          void Excel.run(async (context) => {
-            const sheets = context.workbook.worksheets;
-            sheets.load("name");
-            await context.sync();
-            addToolResult({
-              toolCallId,
-              result: { sheets: sheets.items.map((s) => s.name) },
-            });
-          }).catch((e: unknown) => {
-            addToolResult({
-              toolCallId,
-              result: { error: e instanceof Error ? e.message : String(e) },
-            });
-          });
-        }
-
-        // ── navigate_to_cell ────────────────────────────────────────────────
-        else if (toolName === TOOL_NAVIGATE_TO_CELL) {
-          executedAutoToolsRef.current.add(toolCallId);
-          const { range, sheetName } = parseNavigateToCellArgs(inv.args);
-
-          if (!range) {
-            addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
-            continue;
-          }
-          if (typeof Excel === "undefined") {
-            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
-            continue;
-          }
-
-          void Excel.run(async (context) => {
-            const sheet = sheetName
-              ? context.workbook.worksheets.getItem(sheetName)
-              : context.workbook.worksheets.getActiveWorksheet();
-            const r = sheet.getRange(range.includes("!") ? range.slice(range.indexOf("!") + 1) : range);
-            r.select();
-            await context.sync();
-            addToolResult({ toolCallId, result: { success: true } });
-          }).catch((e: unknown) => {
-            addToolResult({
-              toolCallId,
-              result: { error: e instanceof Error ? e.message : String(e) },
-            });
-          });
-        }
-
-        // ── highlight_cells ─────────────────────────────────────────────────
-        else if (toolName === TOOL_HIGHLIGHT_CELLS) {
-          executedAutoToolsRef.current.add(toolCallId);
-          const { range, sheetName, color = "#FFFF00" } = parseHighlightCellsArgs(inv.args);
-
-          if (!range) {
-            addToolResult({ toolCallId, result: { error: "No se especificó un rango." } });
-            continue;
-          }
-          if (typeof Excel === "undefined") {
-            addToolResult({ toolCallId, result: { error: "Excel no disponible." } });
-            continue;
-          }
-
-          void Excel.run(async (context) => {
-            const sheet = sheetName
-              ? context.workbook.worksheets.getItem(sheetName)
-              : context.workbook.worksheets.getActiveWorksheet();
-            const r = sheet.getRange(range.includes("!") ? range.slice(range.indexOf("!") + 1) : range);
-            r.format.fill.color = color;
-            await context.sync();
-            addToolResult({ toolCallId, result: { success: true } });
-          }).catch((e: unknown) => {
-            addToolResult({
-              toolCallId,
-              result: { error: e instanceof Error ? e.message : String(e) },
-            });
-          });
-        }
-      }
-    }
-  }, [messages, addToolResult]);
-
-  // ── onToolResult para tools de confirmación (format, table, sort, filter, chart)
-  // Se mantienen en ChatMessageList via props; aquí solo necesitamos las funciones.
-  // Los parsers convierten unknown → tipo concreto dentro de los callbacks de ChatMessageList.
-  // Exponemos wrappers tipados para que ChatMessageList reciba ExecuteFn (args: unknown).
-  const executeFormatTyped = useCallback(
-    (args: unknown) => executeFormat(parseFormatRangeArgs(args)),
-    [executeFormat]
-  );
-  const executeCreateTableTyped = useCallback(
-    (args: unknown) => executeCreateTable(parseCreateTableArgs(args)),
-    [executeCreateTable]
-  );
-  const executeSortRangeTyped = useCallback(
-    (args: unknown) => executeSortRange(parseSortRangeArgs(args)),
-    [executeSortRange]
-  );
-  const executeFilterRangeTyped = useCallback(
-    (args: unknown) => executeFilterRange(parseFilterRangeArgs(args)),
-    [executeFilterRange]
-  );
-  const executeCreateChartTyped = useCallback(
-    (args: unknown) => executeCreateChart(parseCreateChartArgs(args)),
-    [executeCreateChart]
-  );
-  const executeCreatePivotTableTyped = useCallback(
-    (args: unknown) => executeCreatePivotTable(parseCreatePivotTableArgs(args)),
-    [executeCreatePivotTable]
-  );
-  const executeEditPivotTableTyped = useCallback(
-    (args: unknown) => executeEditPivotTable(parseEditPivotTableArgs(args)),
-    [executeEditPivotTable]
-  );
-  const executeConditionalFormatTyped = useCallback(
-    (args: unknown) => executeConditionalFormat(parseConditionalFormatArgs(args)),
-    [executeConditionalFormat]
-  );
-  const executeDataValidationTyped = useCallback(
-    (args: unknown) => executeDataValidation(parseDataValidationArgs(args)),
-    [executeDataValidation]
-  );
-  const executeEditChartTyped = useCallback(
-    (args: unknown) => executeEditChart(parseEditChartArgs(args)),
-    [executeEditChart]
-  );
-
-  /**
-   * Wrapper del submit: lee Excel en vivo justo antes de enviar.
-   */
   const onFormSubmit = useCallback(
     async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -419,9 +182,6 @@ export default function ChatPage({
     [getContextForMessage, handleSubmit]
   );
 
-  /**
-   * Envía una sugerencia de followup como nuevo mensaje de usuario.
-   */
   const onSuggestedFollowup = useCallback(
     (suggestion: string) => {
       void append({ role: "user", content: suggestion });
@@ -461,17 +221,17 @@ export default function ChatPage({
           messages={messages}
           isLoading={isLoading}
           emptyMessage="Escribe un mensaje. Se enviará el rango seleccionado en Excel como contexto."
-          executeWrite={executeWrite}
-          executeFormat={executeFormatTyped}
-          executeCreateTable={executeCreateTableTyped}
-          executeSortRange={executeSortRangeTyped}
-          executeFilterRange={executeFilterRangeTyped}
-          executeCreateChart={executeCreateChartTyped}
-          executeCreatePivotTable={executeCreatePivotTableTyped}
-          executeEditPivotTable={executeEditPivotTableTyped}
-          executeConditionalFormat={executeConditionalFormatTyped}
-          executeDataValidation={executeDataValidationTyped}
-          executeEditChart={executeEditChartTyped}
+          executeWrite={toolExecutors.executeWrite}
+          executeFormat={toolExecutors.executeFormat}
+          executeCreateTable={toolExecutors.executeCreateTable}
+          executeSortRange={toolExecutors.executeSortRange}
+          executeFilterRange={toolExecutors.executeFilterRange}
+          executeCreateChart={toolExecutors.executeCreateChart}
+          executeCreatePivotTable={toolExecutors.executeCreatePivotTable}
+          executeEditPivotTable={toolExecutors.executeEditPivotTable}
+          executeConditionalFormat={toolExecutors.executeConditionalFormat}
+          executeDataValidation={toolExecutors.executeDataValidation}
+          executeEditChart={toolExecutors.executeEditChart}
           onToolResult={onToolResult}
           executingToolCallId={executingToolCallId}
           setExecutingToolCallId={setExecutingToolCallId}

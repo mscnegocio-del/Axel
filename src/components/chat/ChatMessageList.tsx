@@ -18,7 +18,8 @@ import {
   RunSkillCard,
   ListSkillsCard,
 } from "./ToolCallCards";
-import { SuggestedFollowups, extractFollowups } from "./SuggestedFollowups";
+import { SuggestedFollowups } from "./SuggestedFollowups";
+import { extractFollowups } from "@/lib/followups";
 import {
   TOOL_READ_EXCEL_RANGE,
   TOOL_WRITE_EXCEL_RANGE,
